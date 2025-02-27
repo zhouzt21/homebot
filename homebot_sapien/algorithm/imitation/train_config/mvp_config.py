@@ -1,0 +1,50 @@
+train_config = dict(
+    run_name="resnet_doornotexture_acttool_discrete61_sameemb128_both_nostate",
+    log_dir="logs",
+    policy_name="mvppolicy",
+    data_config=dict(
+        overwrite=False,
+        file_pattern=[
+            "demos/scripted_opendoor/traj*.pkl",
+        ],
+        n_images=1,
+        # gripper_action="3mode",
+        # robot_state_keys=("pose", "gripper_width"),
+        # robot_state_keys=("joint", "gripper_width"),
+        robot_state_keys=(),
+        # action_joint_or_pose="pose",
+        action_keys=("gripper", "pose"),
+        # gripper_action_scale=0.2,
+        action_relative="tool",
+        image_wrist_or_head="both",
+        head_img_shift_range=(0, 0),
+    ),
+    mvp_config=dict(
+        enc_type="resnet",
+        use_pretrained=True,
+        # predictor_type="continuous",
+        predictor_type="discrete",
+        num_bins=[11, 61, 61, 61, 61, 61, 61],
+        lang_cond=False,
+        fuse_ln=True,
+        dropout=0.1,
+        lang_emb_dim=64,
+        state_emb_dim=128,
+    ),
+    r3m_config=dict(
+        state_proj_size=32,
+        image_proj_size=256,
+        hidden_size=256,
+        n_bins=21,
+    ),
+    optim=dict(
+        base_lr=3e-4,
+        weight_decay=0.01,
+        warmup_epoch=20,  #
+        n_epoch=200,  #
+        batch_size=32,  # 128,
+        max_grad_norm=0,
+        stop_epoch=200,
+    ),
+    save_interval=10,
+)

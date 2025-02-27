@@ -1,0 +1,1 @@
+rsync -av --exclude texture --exclude asset/mani_skill2_ycb --exclude demos --exclude tmp_dataset --exclude logs --exclude wandb --exclude docker/*.pth --exclude __pycache__ yunfei@10.210.13.13:projects/homebot_sim/ ./

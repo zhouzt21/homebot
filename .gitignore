@@ -1,0 +1,21 @@
+.DS_Store
+__pycache__
+texture/
+try/
+*.png
+*.jpg
+*.convex.stl
+*.mp4
+*.gif
+*.zip
+# *.obj
+# /*.json
+*.mtl
+demos
+tmp_dataset
+tmp_dataset_doortexture
+logs
+wandb
+asset/mani_skill2_ycb
+asset/mani_skill2_egad
+pre-commit-repos
