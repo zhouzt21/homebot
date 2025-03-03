@@ -660,14 +660,21 @@ def build_actor_ycb(
         density=1000,
         root_dir=os.path.join(ASSET_DIR, "mani_skill2_ycb"),
         root_position=np.array([1.0, 1.0, 1.5]),
-        root_angle=0.
+        root_angle=0.,
+        allow_dir = []
 ):
     builder = scene.create_actor_builder()
     model_dir = os.path.join(root_dir, "models", model_id)
 
     collision_file = os.path.join(model_dir, "collision.obj")
     if not os.path.exists(collision_file):
-        collision_file = os.path.join(model_dir, "collision", "collision.obj")
+        if len(allow_dir) > 0:
+            for d in allow_dir:
+                collision_file = os.path.join(root_dir,"models", d, model_id, "collision", "collision.obj")
+                if os.path.exists(collision_file):
+                    break
+        else:
+            collision_file = os.path.join(model_dir, "collision", "collision.obj")
     # print("collision file", collision_file, "scale", scale, "density", density)
     if isinstance(scale, float):
         scale = [scale] * 3
@@ -682,7 +689,13 @@ def build_actor_ycb(
 
     visual_file = os.path.join(model_dir, "textured.obj")
     if not os.path.exists(visual_file):
-        visual_file = os.path.join(model_dir, "poisson", "textured.obj")
+        if len(allow_dir) > 0:
+            for d in allow_dir:
+                visual_file = os.path.join(root_dir,"models", d, model_id, "poisson", "textured.obj")
+                if os.path.exists(visual_file):
+                    break
+        else:
+            visual_file = os.path.join(model_dir, "poisson", "textured.obj")
     builder.add_visual_from_file(filename=visual_file, scale=scale)
 
     actor = builder.build(name=model_id)

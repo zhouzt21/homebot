@@ -41,3 +41,28 @@ pick_and_place_articulation
         load_drawers,
         load_table_4,
     )
+
+## algos
+
+- pick_and_place
+    - collect_rand_and_cano_data(): sim2sim_3 这里只是保存了cano 和 rand 的image obs
+    - collect_imitation_data(): cano_policy_2 这里采集了action state image所有数据
+    - 这里开始训diffusion policy了
+    - eval_imitation() 感觉是训完了之后来验证训的效果（验证diffusion）
+
+- pick_and_place_panda
+    - collect_rand_and_cano_data(): sim2sim_pd_1
+    - collect_imitation_data(): rand_policy_pd_1"
+    // rand开头的是无rl panda的il数据； sim2sim数字开头
+
+- pick_and_place_panda_rl
+    - collect_imitation_data(): cano_policy_pd_rl_1
+
+- drawer 
+    - collect_imitation_data(): cano_drawer_0919
+    - collect_sim2sim_data(): sim2sim_drawer_0919
+
+- pick_and_place_bowl
+    <!-- - collect_rand_and_cano_data(): sim2sim_pd_1 -->
+    - collect_imitation_data(): cano_bowl_1007
+    - collect_sim2sim_data(): sim2sim_bowl_1004    
