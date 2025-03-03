@@ -19,3 +19,5 @@ wandb
 asset/mani_skill2_ycb
 asset/mani_skill2_egad
 pre-commit-repos
+homebot_sapien/eval/tmp
+homebot_sapien/collect/tmp
