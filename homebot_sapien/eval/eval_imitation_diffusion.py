@@ -5,23 +5,23 @@ import numpy as np
 
 import sys
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
-sys.path.append("/home/zhouzhiting/Projects/homebot")
-sys.path.append("/home/zhouzhiting/Projects")
-from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 import pickle
 from datetime import datetime
 
 import torchvision.transforms as transforms
 
+sys.path.append("/home/zhouzhiting/Projects")
+from homebot.homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 # from .drawer import PickAndPlaceEnv
 from homebot_sapien.env.pick_and_place_panda import PickAndPlaceEnv
-
 from diffusion_policy.policy import DiffusionPolicy
 
+
+################## init policy ##################
 # in docker
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_policy_1/", "norm_stats.pkl"), "rb"))
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_drawer_0915/", "norm_stats_1.pkl"), "rb"))
-OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/panda_data/cano_policy_pd_1/", "norm_stats_1.pkl"), "rb"))
+OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/Data/panda_data/cano_policy_pd_2/", "norm_stats_1.pkl"), "rb"))
 
 pose_gripper_mean = np.concatenate(
     [
@@ -70,18 +70,35 @@ policy_config = {
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240422_212001/policy_step_200000_seed_0.ckpt"
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240424_122944/policy_step_400000_seed_0.ckpt"
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240915_133854/policy_step_500000_seed_0.ckpt"
-ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250228_211805/policy_step_2000_seed_0.ckpt"
+# ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250228_211805/policy_step_2000_seed_0.ckpt"
+# ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250303_115710/policy_step_15000_seed_0.ckpt"
+ckpt_path = "/home/zhouzhiting/Data/panda_data/diffusion_policy_checkpoints/20250307_191102/policy_step_250000_seed_0.ckpt"
+
 
 policy = DiffusionPolicy(policy_config)
 policy.deserialize(torch.load(ckpt_path))
 policy.eval()
 policy.cuda()
 
+##################################
+
 def process_action(action):
+    """
+        unnormalize the action to the original scale, prepare for the env step.
+        input: action: (10,), float, np
+        output: action: (10,), float, np
+    """
     action = action * np.expand_dims(pose_gripper_scale, axis=0) + np.expand_dims(pose_gripper_mean, axis=0)
     return action
 
 def process_data(image_list, proprio_state):
+    """
+        process the data for diffusion policy model. 
+        input:  image_list: [ M * (h, w, c)],  uint8, np (M is the number of cameras)
+                proprio_state: (10,), float, np
+        output: image_data: (M, c, h, w),  normalized in [0,1], float, np
+                qpos_data: (10)
+    """
     all_cam_images = np.stack(image_list, axis=0)
     image_data = torch.from_numpy(all_cam_images)
     image_data = torch.einsum('k h w c -> k c h w', image_data)
@@ -114,12 +131,18 @@ def process_data(image_list, proprio_state):
 
 
 def eval_imitation():
+    """"
+        evaluate the cano policy in the pick and place env.
+        loop: num_eval
+            loop: num_obj
+                loop: num_pred
+                    step action 10 steps for each prediction
+    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     env = PickAndPlaceEnv(
         use_gui=False,
         device=device,
-        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
@@ -133,16 +156,15 @@ def eval_imitation():
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     save_dir = os.path.join("tmp", stamp)
-    # save_dir = "try"
-    # num_seeds = 10000
-    num_eval = 2 #10
+
+    num_eval = 10
     os.makedirs(save_dir, exist_ok=True)
 
     from tqdm import tqdm
 
     for i_eval in range(num_eval):
-        # seed = i_eval + 5000
-        seed = 5
+        seed = i_eval + 1000
+        # seed = 4
         # save_path = os.path.join(save_dir, f"seed_{seed}")
         # os.makedirs(save_path, exist_ok=True)
 
@@ -167,7 +189,8 @@ def eval_imitation():
                 codec="h264",
             ) for cam in cameras}
 
-            for _ in tqdm(range(40)):
+            num_pred = 40
+            for _ in tqdm(range(num_pred)):
                 obs = env.get_observation()
                 image_list = []
                 for cam in cameras:
@@ -234,8 +257,6 @@ def eval_imitation():
 
             for writer in video_writer.values():
                 writer.close()
-
-            # exit()
 
 
 if __name__ == "__main__":
