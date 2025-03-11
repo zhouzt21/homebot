@@ -213,10 +213,24 @@ def handle_request():
             # use diffusion model to get action
             res_dict = get_action(ldm_data)
 
+            # post action to robot server
             return jsonify(res_dict)
 
+        except requests.exceptions.HTTPError as http_err:
+            error_msg = f"LDM服务器HTTP错误: {http_err}"
+            return jsonify({"error": error_msg}), http_err.response.status_code
+        except requests.exceptions.ConnectionError as conn_err:
+            error_msg = f"无法连接到LDM服务器: {conn_err}"
+            return jsonify({"error": error_msg}), 503
+        except requests.exceptions.Timeout as timeout_err:
+            error_msg = f"LDM服务器请求超时: {timeout_err}"
+            return jsonify({"error": error_msg}), 504
+        except requests.exceptions.RequestException as err:
+            error_msg = f"请求LDM服务器时发生错误: {err}"
+            return jsonify({"error": error_msg}), 500
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            error_msg = f"处理请求时发生未知错误: {str(e)}"
+            return jsonify({"error": error_msg}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port="9988")  # check?
