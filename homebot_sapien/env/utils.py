@@ -6,7 +6,7 @@ from PIL import Image
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler
 # from homebot_sapien import PANDA_DATA
-PANDA_DATA = "/home/zhouzhiting/panda_data"
+PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
 
 dtd_cache: List[str] = []

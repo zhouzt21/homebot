@@ -25,7 +25,6 @@ from .pick_and_place_articulation import (
     load_storage_box,
     load_blocks_on_table,
     build_actor_ycb,
-    build_actor_ycb,
     build_actor_egad,
     ASSET_DIR
 )
@@ -36,8 +35,6 @@ import pickle
 import requests
 from datetime import datetime
 
-# from Projects.homebot.config import PANDA_DATA
-PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
 class PickAndPlaceEnv(BaseEnv):
     def __init__(
@@ -48,8 +45,7 @@ class PickAndPlaceEnv(BaseEnv):
             obs_keys=tuple(),
             action_relative="tool",
             domain_randomize=True,
-            canonical=True,
-            allow_dir=[]
+            canonical=True
     ):
         self.tcp_link_idx: int = None
         self.agv_link_idx: int = None
@@ -61,11 +57,10 @@ class PickAndPlaceEnv(BaseEnv):
         self.expert_phase = 0
         self.domain_randomize = domain_randomize
         self.canonical = canonical
-        self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.793, -0.056, 1.505])    # calibrate
-        look_at_dir = np.array([-0.616, 0.044, -0.787])  # rotate
+        cam_p = np.array([0.793, -0.056, 1.505])
+        look_at_dir = np.array([-0.616, 0.044, -0.787])
         right_dir = np.array([0.036, 0.999, 0.027])
         self.create_camera(
             position=cam_p,
@@ -130,8 +125,7 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        # ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v3.json"), "r"))
-        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
+        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v3.json"), "r"))
         # self.model_db = ycb_models
 
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
@@ -164,7 +158,7 @@ class PickAndPlaceEnv(BaseEnv):
         self.table_top_z = 0.76
         self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
 
-    def reload_objs(self, obj_list=None, egad_ratio=0.5, num_obj=1):   # can change num_obj
+    def reload_objs(self, obj_list=None, egad_ratio=0.5, num_obj=1):
         if hasattr(self, "objs"):
             for obj_id, obj_dict in self.objs.items():
                 self.scene.remove_actor(obj_dict["actor"])
@@ -178,12 +172,10 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = self.np_random.choice(list(self.model_db["egad"].keys()), num_egad, replace=False)
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
-            # egad_list +
-            obj_list = self.np_random.choice(egad_list +ycb_list, num_obj, replace=False)
+            obj_list = self.np_random.choice(egad_list + ycb_list, num_obj, replace=False)
             # print(obj_list)
 
         # obj_list = ["011_banana", ]
-        print("obj_list", obj_list)
         for model_type, model_id in obj_list:
             bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
                          self.model_db[model_type][model_id]["scales"][0]
@@ -234,8 +226,7 @@ class PickAndPlaceEnv(BaseEnv):
                         density=self.model_db[model_type][model_id]["density"] if "density" in
                                                                                   self.model_db[model_type][
                                                                                       model_id].keys() else 1000,
-                        scale=self.model_db[model_type][model_id]["scales"][0],
-                        allow_dir=self.allow_dir
+                        scale=self.model_db[model_type][model_id]["scales"][0]
                     )
                     obj.set_damping(0.1, 0.1)
                 else:
@@ -605,13 +596,12 @@ class PickAndPlaceEnv(BaseEnv):
             self.scene.step()
 
         # TODO: obs, reward, info
-        self._update_observation()  # zzt
+        # self._update_observation()
         obs = OrderedDict()
         for key in self.obs_keys:
             obs[key] = self.observation_dict[key]
         is_success = None
         reward = None
-
         # is_success = self._is_success()
         # reward = (
         #         self._reward_door_angle()
@@ -1035,6 +1025,784 @@ class PickAndPlaceEnv(BaseEnv):
             return left_project_impulse > threshold or right_project_impulse > threshold
 
 
+def collect_rand_and_cano_data():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # video_filename = "test3"
+    # video_writer = imageio.get_writer(
+    #     f"{video_filename}.mp4",
+    #     fps=40,
+    #     format="FFMPEG",
+    #     codec="h264",
+    # )
+
+    rand_pick_env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=False
+    )
+
+    cano_pick_env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=True
+    )
+
+    # envs = [rand_pick_env, cano_pick_env]
+    envs = {
+        "rand": rand_pick_env,
+        "cano": cano_pick_env,
+    }
+    cameras = ["third"]
+
+    save_dir = "/root/data/sim2sim_pd_1"
+    # save_dir = "try"
+    num_seeds = 10000
+    steps_per_obj = 400
+    # num_seeds = 10
+    num_vid = 10
+    os.makedirs(save_dir, exist_ok=True)
+
+    cnt_list = []
+
+    from tqdm import tqdm
+
+    for seed in tqdm(range(num_seeds)):
+        for idx, (env_key, env) in enumerate(envs.items()):
+            env.reset(seed=seed)
+
+            # env.scene.set_timestep(0.01)
+            # env.frame_skip = 5
+
+            random_state = np.random.RandomState(seed=seed)
+
+            if seed < num_vid:
+                video_writer = {cam: imageio.get_writer(
+                    f"seed_{seed}_env_{env_key}_cam_{cam}.mp4",
+                    # fps=40,
+                    fps=10,
+                    format="FFMPEG",
+                    codec="h264",
+                ) for cam in cameras}
+
+            # data = []
+
+            model_id_list = list(env.objs.keys())
+            # print(model_id_list)
+            random_state.shuffle(model_id_list)
+
+            frame_id = 0
+
+            for model_id in model_id_list:
+
+                try:
+
+                    goal_p_rand = random_state.uniform(-0.1, 0.1, size=(2,))
+                    goal_q_rand = random_state.uniform(-0.5, 0.5)
+
+                    prev_privileged_obs = None
+                    for step in range(steps_per_obj):
+
+                        action, done, _ = env.expert_action(
+                            noise_scale=0.2, obj_id=model_id,
+                            goal_obj_pose=sapien.Pose(
+                                p=np.concatenate([np.array([0.4, -0.2]) + goal_p_rand, [0.76]]),
+                                q=euler2quat(np.array([0, 0, goal_q_rand]))
+                            )
+                        )
+                        _, _, _, _, info = env.step(action)
+
+                        # rgb_images = env.render_all()
+                        if frame_id % 10 == 0:
+                            world_tcp_pose = env._get_tcp_pose()
+                            gripper_width = env._get_gripper_width()
+                            privileged_obs = np.concatenate(
+                                [
+                                    world_tcp_pose.p,
+                                    world_tcp_pose.q,
+                                    [gripper_width],
+                                ]
+                            )
+                            if prev_privileged_obs is not None and np.all(
+                                    np.abs(privileged_obs - prev_privileged_obs) < 1e-4):
+                                env.expert_phase = 0
+                                break
+                            prev_privileged_obs = privileged_obs
+
+                            rgb_images = env.capture_images_new(cameras=cameras)
+                            # data_item = {}
+                            # for k, image in rgb_images.items():
+                            #     if "third" in k:
+                            #         data_item[k] = image
+
+                            if seed < num_vid:
+                                for cam in cameras:
+                                    video_writer[cam].append_data(rgb_images[f"{cam}-rgb"])
+                                # if seed == 0 and idx == 0 and step == 0:
+                                #     # print(data_item.keys())
+                                #     imageio.imwrite(f'third-rgb-0.jpg', rgb_images["third-rgb"])
+
+                            # data.append(data_item)
+                            # data.append(rgb_images["third-rgb"])
+                            save_path = os.path.join(save_dir, f"seed_{seed}")
+                            os.makedirs(save_path, exist_ok=True)
+                            for cam in cameras:
+                                imageio.imwrite(os.path.join(save_path, f"env_{env_key}_cam_{cam}_step_{frame_id}.jpg"),
+                                                rgb_images[f"{cam}-rgb"])
+                        frame_id += 1
+
+                        if done:
+                            # print(f"{model_id} done! use step {step}.")
+                            # video_writer.close()
+                            # p = envs[0].objs[model_id]["actor"].get_pose().p
+                            # if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
+                            #     success_list.append(model_id)
+                            # else:
+                            #     print(model_id, p)
+                            break
+                        elif step == steps_per_obj - 1:
+                            # print(f"{model_id} step used out. ")
+                            env.expert_phase = 0
+                            # pass
+
+                except Exception as e:
+                    print(seed, env_key, model_id, e)
+                    env.expert_phase = 0
+
+            # print(len(frames))
+            if idx == 0:
+                cnt_list.append(frame_id)
+                # cnt_list.append(len(data))
+
+            # pickle.dump(data, open(os.path.join(save_dir, f"seed_{seed}_env_{idx}.pkl"), "wb"))
+
+            if seed < num_vid:
+                for cam in cameras:
+                    video_writer[cam].close()
+
+        # exit()
+
+    print(np.sum(cnt_list))
+    pickle.dump(cnt_list, open(os.path.join(save_dir, f"cnt.pkl"), "wb"))
+
+
+def collect_imitation_data():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    cano_pick_env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        # canonical=True,
+        canonical=False,
+    )
+
+    env = cano_pick_env
+    cameras = ["third"]
+
+    save_dir = "/root/data/rand_policy_pd_1"
+    # save_dir = "try"
+    num_seeds = 5000
+    # num_seeds = 10
+    num_vid = 10
+    os.makedirs(save_dir, exist_ok=True)
+
+    # cnt_list = []
+    num_suc = 0
+
+    from tqdm import tqdm
+
+    for seed in tqdm(range(num_seeds)):
+        save_path = os.path.join(save_dir, f"seed_{seed}")
+        os.makedirs(save_path, exist_ok=True)
+
+        env.reset(seed=seed)
+
+        # env.scene.set_timestep(0.01)
+        # env.frame_skip = 5
+
+        random_state = np.random.RandomState(seed=seed)
+
+        # data = []
+
+        model_id_list = list(env.objs.keys())
+        # print(model_id_list)
+        random_state.shuffle(model_id_list)
+
+        success_list = []
+
+        for ep_id, model_id in enumerate(model_id_list):
+
+            if seed < num_vid:
+                video_writer = {cam: imageio.get_writer(
+                    f"tmp/seed_{seed}_ep_{ep_id}_cam_{cam}.mp4",
+                    # fps=40,
+                    fps=20,
+                    format="FFMPEG",
+                    codec="h264",
+                ) for cam in cameras}
+
+            success = False
+            frame_id = 0
+
+            try:
+
+                ep_path = os.path.join(save_path, f"ep_{ep_id}")
+                os.makedirs(ep_path, exist_ok=True)
+                goal_p_rand = random_state.uniform(-0.1, 0.1, size=(2,))
+                goal_q_rand = random_state.uniform(-0.5, 0.5)
+
+                prev_privileged_obs = None
+                for step in range(500):
+                    action, done, desired_dict = env.expert_action(
+                        noise_scale=0.2, obj_id=model_id,
+                        goal_obj_pose=sapien.Pose(
+                            p=np.concatenate([np.array([0.4, -0.2]) + goal_p_rand, [0.76]]),
+                            q=euler2quat(np.array([0, 0, goal_q_rand]))
+                        )
+                    )
+                    _, _, _, _, info = env.step(action)
+
+                    # rgb_images = env.render_all()
+                    # rgb_images = env.capture_images_new(cameras=cameras)
+                    if step < 400:
+                        if done:
+                            p = env.objs[model_id]["actor"].get_pose().p
+                            if 0.25 < p[0] < 0.55 and -0.35 < p[1] < -0.05:
+                                success = True
+                            break
+                        obs = env.get_observation()
+                        obs.update({"action": action})
+                        obs.update(desired_dict)
+                        if prev_privileged_obs is not None and np.all(
+                                np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
+                            env.expert_phase = 0
+                            break
+                        prev_privileged_obs = obs["privileged_obs"]
+                        # print(obs.keys())
+                        # data_item = {}
+                        # for k, image in rgb_images.items():
+                        #     if "third" in k:
+                        #         data_item[k] = image
+
+                        # if seed < num_vid:
+                        #     for cam in cameras:
+                        #         video_writer[cam].append_data(obs[f"{cam}-rgb"])
+                        # if seed == 0 and idx == 0 and step == 0:
+                        #     # print(data_item.keys())
+                        #     imageio.imwrite(f'third-rgb-0.jpg', rgb_images["third-rgb"])
+
+                        # data.append(data_item)
+                        # data.append(rgb_images["third-rgb"])
+
+                        # for cam in cameras:
+                        #     imageio.imwrite(os.path.join(ep_path, f"cam_{cam}_step_{frame_id}.jpg"),
+                        #                     obs[f"{cam}-rgb"])
+                        for cam in cameras:
+                            image = obs.pop(f"{cam}-rgb")
+                            imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{cam}.jpg"), image)
+                            if seed < num_vid:
+                                video_writer[cam].append_data(image)
+
+                        pickle.dump(obs, open(os.path.join(ep_path, f"step_{frame_id}.pkl"), "wb"))
+                        frame_id += 1
+
+                    else:
+                        if done:
+                            break
+                        env.expert_phase = 6
+
+            except Exception as e:
+                print(seed, ep_id, e)
+
+            if success:
+                success_list.append((ep_id, "s", frame_id))
+                num_suc += 1
+                # print(seed, ep_id, "s", frame_id)
+            else:
+                success_list.append((ep_id, "f", frame_id))
+                # print(seed, ep_id, "f", frame_id)
+
+                # if done:
+                # print(f"{model_id} done! use step {step}.")
+                # video_writer.close()
+                # p = envs[0].objs[model_id]["actor"].get_pose().p
+                # if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
+                #     success_list.append(model_id)
+                # else:
+                #     print(model_id, p)
+                # break
+                # elif step == 399:
+                # print(f"{model_id} step used out. ")
+                # pass
+
+            # print(len(frames))
+            # if idx == 0:
+            #     cnt_list.append(frame_id)
+            # cnt_list.append(len(data))
+
+            # pickle.dump(data, open(os.path.join(save_dir, f"seed_{seed}_env_{idx}.pkl"), "wb"))
+
+            if seed < num_vid:
+                for writer in video_writer.values():
+                    writer.close()
+
+        pickle.dump(success_list, open(os.path.join(save_path, f"info.pkl"), "wb"))
+
+    print(num_suc)
+
+        # exit()
+
+    # print(np.sum(cnt_list))
+    # pickle.dump(cnt_list, open(os.path.join(save_dir, f"cnt.pkl"), "wb"))
+
+    # rgb_images = open_door_sim.render_all()
+    # imageio.imwrite(f'third-rgb-{"c" if canonical else "r"}-0.jpg', rgb_images["third-rgb"])
+    #
+    # open_door_sim.reset(seed=0)
+    # rgb_images = open_door_sim.render_all()
+    # imageio.imwrite(f'third-rgb-{"c" if canonical else "r"}-1.jpg', rgb_images["third-rgb"])
+    #
+    # open_door_sim.reset(seed=1)
+    # rgb_images = open_door_sim.render_all()
+    # imageio.imwrite(f'third-rgb-{"c" if canonical else "r"}-2.jpg', rgb_images["third-rgb"])
+
+    # open_door_sim.reset(seed=0, canonical=canonical)
+
+    # print(open_door_sim.cameras)
+
+    # rgb_images = open_door_sim.render_all()
+    #
+    # for k, image in rgb_images.items():
+    #     # print(k)
+    #     # print(image.shape, image.dtype, np.max(image), np.min(image))
+    #     if "depth" in k:
+    #         image = np.clip(image / np.max(image) * 255, 0, 255).astype(np.uint8)
+    #         image = np.dstack([image] * 3)
+    #     elif "segmentation" in k:
+    #         image = np.clip(image / np.max(image) * 255, 0, 255).astype(np.uint8)
+    #         image1 = np.dstack([image[..., 0]] * 3)
+    #         image2 = np.dstack([image[..., 1]] * 3)
+    #         image = np.dstack([image[..., 0], image[..., 0], image[..., 0]])
+    #         imageio.imwrite(f'{k}-{"c" if canonical else "r"}-1.jpg', image1)
+    #         imageio.imwrite(f'{k}-{"c" if canonical else "r"}-2.jpg', image2)
+    #
+    #     imageio.imwrite(f'{k}-{"c" if canonical else "r"}.jpg', image)
+
+    # success_list = json.load(open("success_model_id.json", "r"))
+
+    # success_list = []
+    # for model_id in list(envs[1].model_db.keys()):
+    #     # if model_id in success_list:
+    #     #     continue
+    #     print(model_id, "...")
+    #     video_filename = model_id
+    #     video_writer = imageio.get_writer(
+    #         f"{1}-{video_filename}.mp4",
+    #         fps=40,
+    #         format="FFMPEG",
+    #         codec="h264",
+    #     )
+    #     obj_list = [video_filename]
+    #     envs[1].reset(seed=2, obj_list=obj_list)
+    #
+    #     # envs[1].reset(seed=2, obj_list=obj_list)
+    #     # for _ in range(200):
+    #     #     open_door_sim.scene.step()
+    #     #     print(_)
+    #     #     all_contact = open_door_sim.scene.get_contacts()
+    #     #     print(all_contact)
+    #     #
+    #     #     rgb_images = open_door_sim.render_all()
+    #     #     rgb_image = rgb_images["third-rgb"]
+    #     #     video_writer.append_data(rgb_image)
+    #     #     # print(open_door_sim.obj.get_pose())
+    #     # video_writer.close()
+    #
+    #     for i in range(1, 500):
+    #         action, done = envs[1].expert_action(noise_scale=0.0, obj_id=list(envs[1].objs.keys())[0],
+    #                                              goal_obj_pose=sapien.Pose(
+    #                                                  p=np.array([0.2, -0.2, 0.76]), q=euler2quat(np.array([0, 0, 0])
+    #                                                                                              )
+    #                                              ))
+    #         _, _, _, _, info = envs[1].step(action)
+    #
+    #         rgb_images = envs[1].render_all()
+    #         video_writer.append_data(rgb_images["third-rgb"])
+    #         # if i % 10 == 0:
+    #         # imageio.imwrite(f'third-rgb-{i // 10}.jpg', rgb_images["third-rgb"])
+    #         # imageio.imwrite(f'top-rgb-{i // 10}.jpg', rgb_images["top-rgb"])
+    #         if done:
+    #             video_writer.close()
+    #             p = envs[0].objs[model_id]["actor"].get_pose().p
+    #             if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
+    #                 success_list.append(model_id)
+    #             else:
+    #                 print(model_id, p)
+    #             break
+    #
+    #     exit()
+    #
+    # json.dump(success_list, open("success_model_id_2.json", "w"), indent=4)
+
+    # exit(1)
+
+    # step_count = 0
+    # traj_count = 0
+    # success_count = 0
+    # done = False
+    # while traj_count < 10:
+    #     action = open_door_sim.expert_action(noise_scale=0.5)
+    #     _, _, _, _, info = open_door_sim.step(action)
+    #     step_count += 1
+    #     rgb_image = open_door_sim.render()
+    #
+    #     video_writer.append_data(rgb_image)
+    #     done = info["is_success"] or step_count >= 600
+    #     if done:
+    #         traj_count += 1
+    #         step_count = 0
+    #         success_count += info["is_success"]
+    #         open_door_sim.reset()
+    # print("success rate", success_count / traj_count)
+    # video_writer.close()
+
+
+def eval_imitation_with_goal():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=True
+    )
+
+    goal_env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=True
+    )
+
+    cameras = ["third", "wrist"]
+    usage = ["obs", "goal"]
+
+    save_dir = "tmp"
+    # save_dir = "try"
+    # num_seeds = 10000
+    num_eval = 10
+    os.makedirs(save_dir, exist_ok=True)
+
+    # cnt_list = []
+
+    from tqdm import tqdm
+
+    for i_eval in tqdm(range(num_eval)):
+        seed = i_eval + 1000
+        save_path = os.path.join(save_dir, f"seed_{seed}")
+        os.makedirs(save_path, exist_ok=True)
+
+        env.reset(seed=seed)
+        goal_env.reset(seed=seed)
+
+        random_state = np.random.RandomState(seed=seed)
+
+        model_id_list = list(env.objs.keys())
+        # print(model_id_list)
+        random_state.shuffle(model_id_list)
+
+        # success_list = []
+
+        for ep_id, model_id in enumerate(model_id_list):
+
+            frame_id = 0
+            success = False
+
+            ep_path = os.path.join(save_path, f"ep_{ep_id}")
+            os.makedirs(ep_path, exist_ok=True)
+            goal_p_rand = random_state.uniform(-0.1, 0.1, size=(2,))
+            goal_q_rand = random_state.uniform(-0.5, 0.5)
+
+            prev_privileged_obs = None
+            prev_obs = None
+            for step in range(500):
+                action, done = goal_env.expert_action(
+                    noise_scale=0.0, obj_id=model_id,
+                    goal_obj_pose=sapien.Pose(
+                        p=np.concatenate([np.array([0.2, -0.2]) + goal_p_rand, [0.76]]),
+                        q=euler2quat(np.array([0, 0, goal_q_rand]))
+                    )
+                )
+                _, _, _, _, info = goal_env.step(action)
+
+                # rgb_images = env.render_all()
+                # rgb_images = env.capture_images_new(cameras=cameras)
+                if step < 400:
+                    if done:
+                        p = goal_env.objs[model_id]["actor"].get_pose().p
+                        if 0.05 < p[0] < 0.35 and -0.35 < p[1] < -0.05:
+                            success = True
+                        break
+                    obs = goal_env.get_observation()
+                    if prev_privileged_obs is not None and np.all(
+                            np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
+                        goal_env.expert_phase = 0
+                        break
+                    prev_privileged_obs = obs["privileged_obs"]
+                    prev_obs = obs
+                    # print(obs.keys())
+                    # data_item = {}
+                    # for k, image in rgb_images.items():
+                    #     if "third" in k:
+                    #         data_item[k] = image
+
+                    # for cam in cameras:
+                    #     video_writer[cam].append_data(obs[f"{cam}-rgb"])
+                    # if seed == 0 and idx == 0 and step == 0:
+                    #     # print(data_item.keys())
+                    #     imageio.imwrite(f'third-rgb-0.jpg', rgb_images["third-rgb"])
+
+                    # data.append(data_item)
+                    # data.append(rgb_images["third-rgb"])
+
+                    # for cam in cameras:
+                    #     imageio.imwrite(os.path.join(ep_path, f"cam_{cam}_step_{frame_id}.jpg"),
+                    #                     obs[f"{cam}-rgb"])
+                    # pickle.dump(obs, open(os.path.join(ep_path, f"step_{frame_id}.pkl"), "wb"))
+                    frame_id += 1
+
+                else:
+                    if done:
+                        break
+                    goal_env.expert_phase = 6
+
+            if success:
+                # success_list.append((ep_id, "s", frame_id))
+                print(seed, ep_id, "s", frame_id)
+                video_writer = {cam: imageio.get_writer(
+                    os.path.join(ep_path, f"seed_{seed}_ep_{ep_id}_cam_{cam}.mp4"),
+                    # fps=40,
+                    fps=20,
+                    format="FFMPEG",
+                    codec="h264",
+                ) for cam in cameras}
+
+                for cam in cameras:
+                    imageio.imwrite(os.path.join(ep_path, f"goal-{cam}.jpg"), prev_obs[f"{cam}-rgb"])
+
+                for step in range(1000):
+                    obs = env.get_observation()
+                    for cam in cameras:
+                        imageio.imwrite(os.path.join(ep_path, f"obs-{cam}.jpg"), obs[f"{cam}-rgb"])
+                        video_writer[cam].append_data(obs[f"{cam}-rgb"])
+
+                    files = {
+                        f"{usg}-{cam}": open(os.path.join(ep_path, f"{usg}-{cam}.jpg"), "rb")
+                        for cam in cameras for usg in usage
+                    }
+                    response = requests.post("http://localhost:9977/diffusion", files=files)
+                    response = response.json()
+
+                    action = np.array(response["action"])
+                    delta_pos = action[:3]
+                    gripper_width = action[-1]
+
+                    mat_6 = action[3:9].reshape(3, 2)
+                    mat_6[:, 0] = mat_6[:, 0] / np.linalg.norm(mat_6[:, 0])
+                    mat_6[:, 1] = mat_6[:, 1] / np.linalg.norm(mat_6[:, 1])
+                    z_vec = np.cross(mat_6[:, 0], mat_6[:, 1])
+                    mat = np.c_[mat_6, z_vec]
+                    assert mat.shape == (3, 3)
+
+                    delta_euler = (
+                            np.clip(
+                                wrap_to_pi(quat2euler(mat2quat(mat))) / env.rot_scale,
+                                -1.0,
+                                1.0,
+                            )
+                            * env.rot_scale
+                    )
+
+                    action = np.concatenate(
+                        [
+                            [0, 0],
+                            delta_pos,
+                            delta_euler,
+                            [gripper_width],
+                        ]
+                    )
+
+                    _, _, _, _, info = env.step(action)
+
+                for writer in video_writer.values():
+                    writer.close()
+
+                exit()
+
+            else:
+                # success_list.append((ep_id, "f", frame_id))
+                print(seed, ep_id, "f", frame_id)
+
+                # if done:
+                # print(f"{model_id} done! use step {step}.")
+                # video_writer.close()
+                # p = envs[0].objs[model_id]["actor"].get_pose().p
+                # if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
+                #     success_list.append(model_id)
+                # else:
+                #     print(model_id, p)
+                # break
+                # elif step == 399:
+                # print(f"{model_id} step used out. ")
+                # pass
+
+            # print(len(frames))
+            # if idx == 0:
+            #     cnt_list.append(frame_id)
+            # cnt_list.append(len(data))
+
+            # pickle.dump(data, open(os.path.join(save_dir, f"seed_{seed}_env_{idx}.pkl"), "wb"))
+
+            # env = deepcopy(goal_env)
+
+        # print(success_list)
+        # pickle.dump(success_list, open(os.path.join(save_path, f"info.pkl"), "wb"))
+
+
+def eval_imitation():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=True,
+        action_relative="none"
+    )
+
+    cameras = ["third", "wrist"]
+    usage = ["obs"]
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    save_dir = os.path.join("tmp", stamp)
+    # save_dir = "try"
+    # num_seeds = 10000
+    num_eval = 10
+    os.makedirs(save_dir, exist_ok=True)
+
+    # cnt_list = []
+
+    from tqdm import tqdm
+
+    for i_eval in range(num_eval):
+        seed = i_eval + 1000
+        save_path = os.path.join(save_dir, f"seed_{seed}")
+        os.makedirs(save_path, exist_ok=True)
+
+        env.reset(seed=seed)
+
+        random_state = np.random.RandomState(seed=seed)
+
+        model_id_list = list(env.objs.keys())
+        # print(model_id_list)
+        random_state.shuffle(model_id_list)
+
+        for ep_id, model_id in enumerate(model_id_list):
+
+            ep_path = os.path.join(save_path, f"ep_{ep_id}")
+            os.makedirs(ep_path, exist_ok=True)
+
+            video_writer = {cam: imageio.get_writer(
+                os.path.join(ep_path, f"seed_{seed}_ep_{ep_id}_cam_{cam}.mp4"),
+                fps=20,
+                format="FFMPEG",
+                codec="h264",
+            ) for cam in cameras}
+
+            for step in tqdm(range(500)):
+                obs = env.get_observation()
+                for cam in cameras:
+                    imageio.imwrite(os.path.join(ep_path, f"obs-{cam}.jpg"), obs[f"{cam}-rgb"])
+                    video_writer[cam].append_data(obs[f"{cam}-rgb"])
+
+                files = {
+                    f"{usg}-{cam}": open(os.path.join(ep_path, f"{usg}-{cam}.jpg"), "rb")
+                    for cam in cameras for usg in usage
+                }
+
+                pose = obs["tcp_pose"]
+                pose_p, pose_q = pose[:3], pose[3:]
+                pose_mat = quat2mat(pose_q)
+
+                pose_at_obs = get_pose_from_rot_pos(
+                    pose_mat, pose_p
+                )
+
+                pose_mat_6 = pose_mat[:, :2].reshape(-1)
+                proprio_state = np.concatenate(
+                    [
+                        pose_p,
+                        pose_mat_6,
+                        np.array([obs["gripper_width"]]),
+                    ]
+                )
+                data = {"proprio_state": json.dumps(proprio_state.tolist())}
+
+                response = requests.post("http://localhost:9977/diffusion", files=files, data=data)
+                response = response.json()
+                # print(response)
+
+                actions = np.array(response["action"])
+                converted_actions = []
+
+                for i in range(10):
+                    action = actions[i]
+                    mat_6 = action[3:9].reshape(3, 2)
+                    mat_6[:, 0] = mat_6[:, 0] / np.linalg.norm(mat_6[:, 0])
+                    mat_6[:, 1] = mat_6[:, 1] / np.linalg.norm(mat_6[:, 1])
+                    z_vec = np.cross(mat_6[:, 0], mat_6[:, 1])
+                    mat = np.c_[mat_6, z_vec]
+                    # assert mat.shape == (3, 3)
+
+                    pos = action[:3]
+                    gripper_width = action[-1]
+
+                    init_to_desired_pose = pose_at_obs @ get_pose_from_rot_pos(
+                        mat, pos
+                    )
+                    pose_action = np.concatenate(
+                        [
+                            [0, 0],
+                            init_to_desired_pose[:3, 3],
+                            mat2euler(init_to_desired_pose[:3, :3]),
+                            [gripper_width]
+                        ]
+                    )
+                    converted_actions.append(pose_action)
+
+                    _, _, _, _, info = env.step(pose_action)
+
+            for writer in video_writer.values():
+                writer.close()
+
+            # exit()
+
+
 def test():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -1044,8 +1812,7 @@ def test():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        action_relative="none", 
-        allow_dir=["fruit"]  # zzt
+        action_relative="none"
     )
     obs = env.get_observation()
 
@@ -1056,7 +1823,7 @@ def test():
 
     action = np.array([0.3, 0, 0.3, np.pi, 0, 0, 0.04])
 
-    for i in range(30):
+    for _ in range(30):
         env.step(action)
 
     obs = env.get_observation()
@@ -1066,4 +1833,7 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
+    # collect_rand_and_cano_data()
+    # collect_imitation_data()
+    eval_imitation()
+    # test()

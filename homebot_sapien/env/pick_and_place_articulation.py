@@ -525,7 +525,8 @@ def load_storage_box(
         scene: sapien.Scene,
         box_size=np.array([0.3, 0.3, 0.05]),
         thickness=0.005,
-        color=np.array([0.6, 0.3, 0]),
+        # color=np.array([0.6, 0.3, 0]),
+        color=np.array([1.0, 1.0, 1.0]),
         root_position=np.array([1., 0.0, 0.0]),
         root_angle=0.
 ):
@@ -735,6 +736,45 @@ def build_actor_egad(
     )
 
     visual_file = os.path.join(root_dir, f"egad_train_set", f"{model_id}.obj")
+    builder.add_visual_from_file(
+        filename=visual_file, scale=[scale] * 3, material=render_material
+    )
+
+    actor = builder.build()
+    actor.set_pose(
+        sapien.Pose(
+            root_position,
+            np.array(
+                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
+            )
+        )
+    )
+    return actor
+
+
+def build_actor_real(
+        model_id: str,
+        scene: sapien.Scene,
+        scale: float = 1.0,
+        physical_material: sapien.PhysicalMaterial = None,
+        render_material: sapien.RenderMaterial = None,
+        density=1000,
+        root_dir=os.path.join(ASSET_DIR, "real_assets"),
+        root_position=np.array([1.0, 1.0, 1.5]),
+        root_angle=0.
+):
+
+    builder = scene.create_actor_builder()
+    collision_file = os.path.join(root_dir, "collision",  f"collision.obj") #
+    assert os.path.exists(collision_file)
+    builder.add_multiple_collisions_from_file(
+        filename=collision_file,
+        scale=[scale] * 3,
+        material=physical_material,
+        density=density,
+    )
+
+    visual_file = os.path.join(root_dir, "visual", f"{model_id}.obj")  #
     builder.add_visual_from_file(
         filename=visual_file, scale=[scale] * 3, material=render_material
     )
