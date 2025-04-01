@@ -7,36 +7,33 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
+import sys 
+sys.path.append("/home/zhouzhiting/Projects/homebot")
+from homebot_sapien.env.base import BaseEnv, recover_action, get_pairwise_contact_impulse #, get_pairwise_contacts
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from .pick_and_place_articulation import (
-    # load_lab_door,
+from homebot_sapien.env.utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from homebot_sapien.env.articulation.pick_and_place_articulation import (
     # generate_rand_door_config,
     load_lab_wall,
-    # load_lab_scene_urdf,
     load_table_4,
-    load_table_2,
     load_storage_box,
-    load_blocks_on_table,
-    build_actor_ycb,
     build_actor_ycb,
     build_actor_egad,
+    build_actor_real,
     ASSET_DIR
 )
-from .robot import load_robot_panda
-from .controller.whole_body_controller import ArmSimpleController
+from homebot_sapien.env.robot import load_robot_panda
+from homebot_sapien.env.controller.whole_body_controller import ArmSimpleController
 import json
 import pickle
 import requests
 from datetime import datetime
 
-# from Projects.homebot.config import PANDA_DATA
 PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
 class PickAndPlaceEnv(BaseEnv):
@@ -64,15 +61,15 @@ class PickAndPlaceEnv(BaseEnv):
         self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.793, -0.056, 1.505])    # calibrate
-        look_at_dir = np.array([-0.616, 0.044, -0.787])  # rotate
-        right_dir = np.array([0.036, 0.999, 0.027])
+        cam_p = np.array([0.763579180, -0.03395012, 1.44071344])    # calibrate   0.793, -0.056, 1.505
+        look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  # rotate  -0.616, 0.044, -0.787
+        right_dir = np.array([0.05021884, 0.99866954, -0.01171393])  #0.036, 0.999, 0.027
         self.create_camera(
             position=cam_p,
             look_at_dir=look_at_dir,
             right_dir=right_dir,
             name="third",
-            resolution=(320, 240),
+            resolution=(640, 480),
             fov=np.deg2rad(44),
         )
         # self.create_camera(
@@ -130,15 +127,14 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        # ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v3.json"), "r"))
         ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
-        # self.model_db = ycb_models
-
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
-        # self.model_db = egad_models
+        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick_v1.json"), "r"))
+
         self.model_db = dict(
             ycb=ycb_models,
-            egad=egad_models
+            egad=egad_models,
+            real=real_models
         )
 
         self.reset(seed=0)
@@ -178,13 +174,15 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = self.np_random.choice(list(self.model_db["egad"].keys()), num_egad, replace=False)
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
-            # egad_list +
-            obj_list = self.np_random.choice(egad_list +ycb_list, num_obj, replace=False)
+            real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
+            # egad_list +egad_list +ycb_list
+            obj_list = self.np_random.choice(real_list, num_obj, replace=False)
             # print(obj_list)
 
         # obj_list = ["011_banana", ]
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
+            model_id = "umbrella" #"umbrella"
             bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
                          self.model_db[model_type][model_id]["scales"][0]
             num_try = 0
@@ -192,9 +190,10 @@ class PickAndPlaceEnv(BaseEnv):
             while num_try < 10 and obj_invalid:
                 rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
                 init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                    [0.4, 0.2, self.table_top_z - bbox_min_z + 5e-3])
+                    [0.4, 0.1, self.table_top_z -bbox_min_z + 5e-3]) #  0.4 0.2 0.76-z
 
                 init_angle = self.np_random.uniform(-np.pi, np.pi)
+                # init_angle = 0.0
 
                 obj_invalid = False
                 if rand_p[0] < -0.05 and rand_p[1] < -0.05:
@@ -238,40 +237,18 @@ class PickAndPlaceEnv(BaseEnv):
                         allow_dir=self.allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
+                elif model_type == "real":
+                    obj = build_actor_real(
+                        model_id, self.scene, root_position=init_p, root_angle=init_angle,
+                        density=self.model_db[model_type][model_id]["density"] if "density" in self.model_db[model_type][model_id].keys() else 1000,
+                        scale=self.model_db[model_type][model_id]["scales"][0],
+                        allow_dir=self.allow_dir
+                    )
+                    obj.set_damping(1.0, 0.1)
                 else:
                     raise Exception("unknown data type!")
 
                 self.objs.update({(model_type, model_id): dict(actor=obj, init_p=init_p, init_angle=init_angle)})
-
-    # def load_objs(self):
-    #     self.model_db = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
-    #
-    #     # obj_list = self.np_random.choice(list(self.model_db.keys()), 4, replace=False)
-    #     obj_list = ["011_banana", ]
-    #     self.objs = {}
-    #     for model_id in obj_list:
-    #         bbox_min_z = self.model_db[model_id]["bbox"]["min"][-1]
-    #         num_try = 0
-    #         p_invalid = True
-    #         while num_try < 10 and p_invalid:
-    #             rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
-    #             init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-    #                 [0.3, 0.2, self.table_top_z - bbox_min_z + 1e-3])
-    #             p_invalid = False
-    #             for prev_model_id in self.objs.keys():
-    #                 if check_intersect_2d(init_p, self.model_db[model_id]["bbox"],
-    #                                       self.objs[prev_model_id][1], self.model_db[prev_model_id]["bbox"]):
-    #                     p_invalid = True
-    #                     break
-    #             num_try += 1
-    #         print(model_id, init_p)
-    #         obj = build_actor_ycb(
-    #             model_id, self.scene, root_position=init_p,
-    #             density=self.model_db[model_id]["density"],
-    #             scale=self.model_db[model_id]["scales"][0]
-    #         )
-    #         obj.set_damping(0.1, 0.1)
-    #         self.objs.update({model_id: (obj, init_p)})
 
     def load_static(self):
         self.scene.set_ambient_light([0.5, 0.5, 0.5])
@@ -493,6 +470,9 @@ class PickAndPlaceEnv(BaseEnv):
                 self.standard_head_cam_fovx + self.np_random.uniform(*fov_rand_range),
                 compute_y=True,
             )
+            # 取消相机随机变换，直接设置为标准相机位姿与视角
+            self.cameras["third"].set_pose(self.standard_head_cam_pose)
+            self.cameras["third"].set_fovx(self.standard_head_cam_fovx, compute_y=True)
             # self.cameras["wrist"].set_fovx(
             #     self.standard_wrist_cam_fovx + self.np_random.uniform(-0.1, 0.1),
             #     compute_y=True,
@@ -635,36 +615,56 @@ class PickAndPlaceEnv(BaseEnv):
         along = self.model_db[obj_id[0]][obj_id[1]]["along"]
         obj_z_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][-1] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        obj_y_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][1] * \
+                    self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         done = False
 
-        init_q = np.array(
-            [np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)]  # (w, x, y, z)
-        )
-        # print(obj_z_max, obj_id)
-
-        # print(along)
         if along == "y":
             obj_T_grasp = sapien.Pose.from_transformation_matrix(
                 np.array(
                     [
                         [0, 1, 0, 0],
-                        [1, 0, 0, 0],
+                        [1, 0, 0, obj_y_max/2],  # 0
                         [0, 0, -1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
                         [0, 0, 0, 1],
                     ]
                 )
             )
-        else:
+            init_q = np.array([np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
+        elif along == "x":
             obj_T_grasp = sapien.Pose.from_transformation_matrix(
                 np.array(
                     [
-                        [-1, 0, 0, 0],
-                        [0, 1, 0, 0],
+                        [1, 0, 0, 0],
+                        [0, -1, 0, obj_y_max/2],
                         [0, 0, -1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
                         [0, 0, 0, 1],
                     ]
                 )
             )
+            init_q = np.array([np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
+        elif along == "z":
+            obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                np.array(
+                    [
+                        [0, 0, -1, 0],
+                        [0, 1, 0, obj_y_max/2],
+                        [1, 0, 0, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
+                        [0, 0, 0, 1],
+                    ]
+                )
+            )
+            init_angle = -np.pi / 2  # not sure
+            init_q = np.array([np.cos(init_angle/2), np.sin(init_angle/2), 0.0, 0.0]) 
+                        # [1, 0, 0, 0],
+                        # [0, 1, 0, 0],
+                        # [0, 0, 1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
+                        # [0, 0, 0, 1],
+
+        # init_q = np.array(
+        #     [np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)]  # (w, x, y, z)
+        # )
+        init_obj_pose = sapien.Pose( p=init_p, q=init_q  )
 
         obj_pose = actor.get_pose()
         # print("obj_pose", obj_pose, quat2euler(obj_pose.q))
@@ -687,8 +687,8 @@ class PickAndPlaceEnv(BaseEnv):
             obj_T_pregrasp = sapien.Pose(
                 p=np.array([0.0, 0.0, 0.06 + obj_z_max]), q=obj_T_grasp.q
             )
-
-            desired_grasp_pose = obj_pose.transform(obj_T_pregrasp)
+            # desired_grasp_pose = obj_pose.transform(obj_T_pregrasp)
+            desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
             # print("desired_grasp_pose", desired_grasp_pose, quat2euler(desired_grasp_pose.q))
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
             # print("processed desired_grasp_pose", desired_grasp_pose, quat2euler(desired_grasp_pose.q))
@@ -713,7 +713,8 @@ class PickAndPlaceEnv(BaseEnv):
             # exit()
 
         elif self.expert_phase == 1:
-            desired_grasp_pose = obj_pose.transform(obj_T_grasp)
+            # desired_grasp_pose = obj_pose.transform(obj_T_grasp)
+            desired_grasp_pose = init_obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
             # print(desired_grasp_pose, "desired")
@@ -1045,8 +1046,9 @@ def test():
         domain_randomize=True,
         canonical=True,
         action_relative="none", 
-        allow_dir=["fruit"]  # zzt
+        allow_dir=["cylindar", "fruit"]  # zzt,"cylinder"
     )
+    env.reset(seed=200)
     obs = env.get_observation()
 
     imageio.imwrite(os.path.join("tmp", f"test1.jpg"), obs[f"third-rgb"])
@@ -1065,5 +1067,108 @@ def test():
     print(env.robot.get_qpos().copy()[env.arm_controller.arm_joint_indices])
 
 
+def test_expert_grasp():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # from homebot_sapien.env.pick_and_place_panda import PickAndPlaceEnv
+    cano_pick_env = PickAndPlaceEnv(
+        use_gui=False,
+        device=device,
+        obs_keys=(),
+        domain_randomize=True,
+        canonical=True,
+        allow_dir=["cylinder", "fruit"]  #"cylinder",
+    )
+
+    env = cano_pick_env
+    cameras = ["third"]
+
+    num_seeds = 1  # cano test
+    num_vid = 10
+
+    num_suc = 0
+
+    from tqdm import tqdm
+
+    for seed in tqdm(range(num_seeds)):
+
+        seed = 200
+        env.reset(seed=seed)
+        random_state = np.random.RandomState(seed=seed)
+        model_id_list = list(env.objs.keys())
+        random_state.shuffle(model_id_list)
+
+        success_list = []
+
+        for ep_id, model_id in enumerate(model_id_list):
+
+            # if seed < num_vid:
+            video_writer = {cam: imageio.get_writer(
+                # f"tmp/seed_{seed}_ep_{ep_id}_cam_{cam}.mp4",
+                f"tmp/seed_{seed}_{model_id[1]}.mp4",
+                fps=20,
+                format="FFMPEG",
+                codec="h264",
+            ) for cam in cameras}
+
+            success = False
+            frame_id = 0
+
+            try:
+                goal_p_rand = 0 # random_state.uniform(-0.1, 0.1, size=(2,))
+                goal_q_rand = 0 # random_state.uniform(-0.5, 0.5)
+
+                prev_privileged_obs = None
+                for step in range(500):
+                    action, done, desired_dict = env.expert_action(
+                        noise_scale=0.5, obj_id=model_id,
+                        goal_obj_pose=sapien.Pose(
+                            p=np.concatenate([np.array([0.4, -0.2]) + goal_p_rand, [0.76]]),
+                            q=euler2quat(np.array([0, 0, goal_q_rand]))
+                        )
+                    )
+                    _, _, _, _, info = env.step(action)
+
+                    if step < 500:
+                        if done:
+                            p = env.objs[model_id]["actor"].get_pose().p
+                            if 0.25 < p[0] < 0.55 and -0.35 < p[1] < -0.05:
+                                success = True
+                            break
+                        obs = env.get_observation()
+                        obs.update({"action": action})
+                        obs.update(desired_dict)
+                        if prev_privileged_obs is not None and np.all(
+                                np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
+                            env.expert_phase = 0
+                            break
+                        prev_privileged_obs = obs["privileged_obs"]
+
+                        for cam in cameras:
+                            image = obs.pop(f"{cam}-rgb")
+                            # if seed < num_vid:
+                            video_writer[cam].append_data(image)
+                        frame_id += 1
+
+                    else:
+                        if done:
+                            break
+                        env.expert_phase = 6
+            except Exception as e:
+                print(seed, ep_id, e)
+
+            if success:
+                success_list.append((ep_id, "s", frame_id))
+                num_suc += 1
+            else:
+                success_list.append((ep_id, "f", frame_id))
+
+            if seed < num_vid:
+                for writer in video_writer.values():
+                    writer.close()
+
+    print(num_suc)
+
 if __name__ == "__main__":
-    test()
+    # test()
+    test_expert_grasp()

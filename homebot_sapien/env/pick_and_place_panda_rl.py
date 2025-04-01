@@ -15,7 +15,7 @@ from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
 from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from .pick_and_place_articulation import (
+from .articulation.pick_and_place_articulation import (
     # load_lab_door,
     # generate_rand_door_config,
     load_lab_wall,

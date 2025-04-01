@@ -7,6 +7,8 @@ import torch
 import imageio
 import pickle 
 
+import sys 
+sys.path.append("/home/zhouzhiting/Projects/homebot")
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
@@ -62,15 +64,12 @@ def collect_rand_and_cano_data():
     }
     cameras = ["third"]
 
-    # save_dir = "/root/data/sim2sim_pd_1"
-    save_dir =os.path.join(PANDA_DATA, "sim2sim_pd_1")
+    save_dir =os.path.join(PANDA_DATA, "sim2sim_pd_2")
 
-    # save_dir = "try"
     num_seeds = 10000
-    # num_seeds = 10
     steps_per_obj = 400
-    # num_seeds = 10
-    num_vid = 20
+
+    num_vid = 10
     os.makedirs(save_dir, exist_ok=True)
 
     cnt_list = []

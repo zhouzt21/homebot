@@ -7,15 +7,17 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
+import sys 
+sys.path.append("/home/zhouzhiting/Projects/homebot")
+from homebot_sapien.env.base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from .pick_and_place_articulation import (
+from homebot_sapien.env.utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from Projects.homebot.homebot_sapien.env.articulation.pick_and_place_articulation import (
     # load_lab_door,
     # generate_rand_door_config,
     load_lab_wall,
@@ -27,13 +29,13 @@ from .pick_and_place_articulation import (
     build_actor_egad,
     ASSET_DIR
 )
-from .drawer_articulation import (
+from Projects.homebot.homebot_sapien.env.articulation.drawer_articulation import (
     load_drawer_urdf,
     load_drawers,
     load_table_4,
 )
-from .robot import load_robot_panda
-from .controller.whole_body_controller import ArmSimpleController, PandaSimpleController
+from homebot_sapien.env.robot import load_robot_panda
+from homebot_sapien.env.controller.whole_body_controller import ArmSimpleController, PandaSimpleController
 import json
 import pickle
 import requests
@@ -51,7 +53,8 @@ class PickAndPlaceEnv(BaseEnv):
             obs_keys=tuple(),
             action_relative="tool",
             domain_randomize=True,
-            canonical=True
+            canonical=True,
+            allow_dir=[]
     ):
         self.tcp_link_idx: int = None
         self.agv_link_idx: int = None
@@ -63,17 +66,18 @@ class PickAndPlaceEnv(BaseEnv):
         self.expert_phase = 0
         self.domain_randomize = domain_randomize
         self.canonical = canonical
+        self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.793, -0.056, 1.505])
-        look_at_dir = np.array([-0.616, 0.044, -0.787])
-        right_dir = np.array([0.036, 0.999, 0.027])
+        cam_p = np.array([0.763579180, -0.03395012, 1.44071344])    
+        look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  
+        right_dir = np.array([0.05021884, 0.99866954, -0.01171393])
         self.create_camera(
             position=cam_p,
             look_at_dir=look_at_dir,
             right_dir=right_dir,
             name="third",
-            resolution=(320, 240),
+            resolution=(640, 480),
             fov=np.deg2rad(44),
             # fov=np.deg2rad(60),
         )
@@ -132,10 +136,10 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v3.json"), "r"))
+        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
         # self.model_db = ycb_models
 
-        egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
+        egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v0.json"), "r"))
         # self.model_db = egad_models
         self.model_db = dict(
             ycb=ycb_models,
@@ -164,16 +168,16 @@ class PickAndPlaceEnv(BaseEnv):
 
         self.table_top_z = 0.76
 
-        self.drawer_scale = 0.25
+        self.drawer_scale = 0.2 # 0.25
         self.drawer_base_z = 0.16 * self.drawer_scale
         # self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
         drawer_poses = [
             sapien.Pose(
-                p=np.array([0.4, -0.3, self.table_top_z + self.drawer_base_z]),
+                p=np.array([0.4, -0.2, self.table_top_z + self.drawer_base_z]),  # 0.4, -0.3
                 q=euler2quat(np.array([0, 0, np.pi / 2]))
             ),
             sapien.Pose(
-                p=np.array([0.4, -0.3, self.table_top_z + self.drawer_base_z * 3]),
+                p=np.array([0.4, -0.2, self.table_top_z + self.drawer_base_z * 3]),  # 0.4, -0.3
                 q=euler2quat(np.array([0, 0, np.pi / 2]))
             )
         ]
@@ -252,6 +256,7 @@ class PickAndPlaceEnv(BaseEnv):
                                                                                       model_id].keys() else 1000,
                         scale=self.model_db[model_type][model_id]["scales"][0],
                         render_material=mat,
+                        allow_dir=self.allow_dir
                     )
                 elif model_type == "ycb":
                     obj = build_actor_ycb(
@@ -259,7 +264,8 @@ class PickAndPlaceEnv(BaseEnv):
                         density=self.model_db[model_type][model_id]["density"] if "density" in
                                                                                   self.model_db[model_type][
                                                                                       model_id].keys() else 1000,
-                        scale=self.model_db[model_type][model_id]["scales"][0]
+                        scale=self.model_db[model_type][model_id]["scales"][0],
+                        allow_dir=self.allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
                 else:
@@ -390,6 +396,18 @@ class PickAndPlaceEnv(BaseEnv):
                     q=euler2quat(np.array([0, 0, yaw_rand]))
                 )
             ]
+
+            drawer_poses = [
+                sapien.Pose(
+                    p=np.array([0.4, -0.25, self.table_top_z + self.drawer_base_z]),  # 0.4, -0.3
+                    q=euler2quat(np.array([0, 0, np.pi / 2]))
+                ),
+                sapien.Pose(
+                    p=np.array([0.4, -0.25, self.table_top_z + self.drawer_base_z * 3]),  # 0.4, -0.3
+                    q=euler2quat(np.array([0, 0, np.pi / 2]))
+                )
+            ]
+
             self.drawers = load_drawers(self.scene, self.drawer_scale, drawer_poses)
 
             # self.drawer = load_drawer_urdf(self.scene, scale=self.drawer_scale)
@@ -557,6 +575,9 @@ class PickAndPlaceEnv(BaseEnv):
             #     self.standard_wrist_cam_fovx + self.np_random.uniform(-0.1, 0.1),
             #     compute_y=True,
             # )
+            # 取消相机随机变换，直接设置为标准相机位姿与视角
+            self.cameras["third"].set_pose(self.standard_head_cam_pose)
+            self.cameras["third"].set_fovx(self.standard_head_cam_fovx, compute_y=True)
 
         init_p = self.np_random.uniform(
             low=np.array([-0.01, -0.02, 0.78]), high=np.array([0.01, 0.02, 0.78])
@@ -1263,10 +1284,11 @@ def collect_imitation_data():
     cameras = ["third"]
 
     # save_dir = "/root/data/cano_drawer_0919"
-    save_dir = os.path.join(PANDA_DATA, "cano_drawer_0919")
+    # save_dir = os.path.join(PANDA_DATA, "cano_drawer_0919")
+    save_dir = "./tmp/imitation_data"
 
     # save_dir = "try"
-    num_seeds = 5000
+    num_seeds =1# 5000
     num_vid = 10
     os.makedirs(save_dir, exist_ok=True)
 
@@ -1280,14 +1302,6 @@ def collect_imitation_data():
         os.makedirs(save_path, exist_ok=True)
 
         env_wrapper.env.reset(seed=seed)
-
-        # obs = env_wrapper.env.get_observation()
-        # imageio.imwrite(os.path.join("tmp", f"test3.jpg"), obs[f"third-rgb"])
-
-        # random_state = np.random.RandomState(seed=seed)
-
-        # model_id_list = list(env_wrapper.env.objs.keys())
-        # random_state.shuffle(model_id_list)
 
         if seed < num_vid:
             video_writer = {cam: imageio.get_writer(
@@ -1503,6 +1517,6 @@ def collect_sim2sim_data():
 
 if __name__ == "__main__":
     # test()
-    # collect_imitation_data()
-    collect_sim2sim_data()
+    collect_imitation_data()
+    # collect_sim2sim_data()
 

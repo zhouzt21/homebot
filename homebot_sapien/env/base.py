@@ -45,7 +45,7 @@ class BaseEnv(gym.Env):
         # Dummy camera creation to initial geometry object
         if self.renderer:
             cam = self.scene.add_camera(
-                "init_not_used", width=10, height=10, fovy=1, near=0.1, far=1
+                "init_not_used", width=10, height=10, fovy=1., near=0.1, far=1
             )
             self.scene.remove_camera(cam)
             print("add and remove camera")

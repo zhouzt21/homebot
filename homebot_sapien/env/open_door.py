@@ -6,14 +6,14 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action, get_pairwise_contact_impulse
+from .base import BaseEnv, recover_action #, get_pairwise_contact_impulse
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler
 from .utils import apply_random_texture
-from .door_articulation import (
+from .articulation.door_articulation import (
     load_lab_door,
     generate_rand_door_config,
     load_lab_wall,

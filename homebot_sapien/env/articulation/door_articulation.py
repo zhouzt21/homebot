@@ -4,8 +4,8 @@ import os
 import sapien.core as sapien
 from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 
-# from pathlib import Path
-ASSET_DIR = os.path.join(os.path.dirname(__file__), "../../asset")
+
+ASSET_DIR = os.path.join(os.path.dirname(__file__), "../../../asset")
 
 
 @dataclasses.dataclass
@@ -67,10 +67,10 @@ def generate_rand_door_config(np_random: np.random.RandomState, use_real: False)
 
 
 def load_lab_door(
-        scene: sapien.Scene,
-        config: DoorConfig,
-        np_random: np.random.RandomState,
-        need_door_shut=True,
+    scene: sapien.Scene,
+    config: DoorConfig,
+    np_random: np.random.RandomState,
+    need_door_shut=True,
 ):
     if need_door_shut:
         mimic_lock_y = (config.board_y / 2 - config.connector_pos_y) / np.cos(
@@ -343,46 +343,31 @@ def load_lab_door(
     return door_articulation
 
 
-def load_lab_wall(scene: sapien.Scene, position, length, angle=0., color=np.array([0.9, 0.9, 0.9])):
+def load_lab_wall(scene: sapien.Scene):
     wall_builder = scene.create_actor_builder()
     wall_builder.add_box_collision(
-        sapien.Pose(p=np.array([0, 0, 3.0])),
-        half_size=np.array([0.1, length / 2, 3.0]),
+        sapien.Pose(p=np.array([1.0, 5.5, 3.0])),
+        half_size=np.array([0.1, 4.5, 3.0]),
     )
     wall_builder.add_box_visual(
-        sapien.Pose(p=np.array([0, 0, 3.0])),
-        half_size=np.array([0.1, length / 2, 3.0]),
-        color=color,
+        sapien.Pose(p=np.array([1.0, 5.5, 3.0])),
+        half_size=np.array([0.1, 4.5, 3.0]),
+        color=np.array([1.0, 1.0, 1.0]),
     )
     room_wall1 = wall_builder.build("room_wall_1")
-    room_wall1.set_pose(
-        sapien.Pose(
-            np.array([position[0], position[1], 0.0]),
-            np.array(
-                [np.cos(angle / 2), 0.0, 0.0, np.sin(angle / 2)]  # (w, x, y, z)
-            ),
-        )
-    )
-    room_wall1.lock_motion()
 
     return room_wall1
 
 
-def load_table_4(
-        scene: sapien.Scene,
-        surface_size=np.array([2.0, 1.0, 0.03]),
-        leg_size=np.array([0.04, 0.04, 0.73]),
-        leg_pos_x=0.9,
-        leg_pos_y=0.4,
-        root_position=np.array([1.0, 0.0, 0.0]),
-        root_angle=0
-):
+def load_table(scene: sapien.Scene):
     """
     The origin is at the middle of the bottom of the four legs
     """
     table_builder = scene.create_actor_builder()
     # legs
-
+    leg_size = np.array([0.05, 0.05, 0.8])
+    leg_pos_x = 0.4
+    leg_pos_y = 0.7
     leg_pos_z = leg_size[2] / 2
     table_builder.add_box_collision(
         sapien.Pose(p=np.array([-leg_pos_x, -leg_pos_y, leg_pos_z])),
@@ -417,7 +402,7 @@ def load_table_4(
         half_size=leg_size / 2,
     )
     # upper surface
-    # surface_size = np.array([1.0, 1.6, 0.05])
+    surface_size = np.array([1.0, 1.6, 0.05])
     surface_pos_x = 0.0
     surface_pos_y = 0.0
     surface_pos_z = leg_size[2] + surface_size[2] / 2
@@ -428,191 +413,11 @@ def load_table_4(
     table_builder.add_box_visual(
         sapien.Pose(p=np.array([surface_pos_x, surface_pos_y, surface_pos_z])),
         half_size=surface_size / 2,
-        color=np.array([0., 0.4, 0.]),
-        name="upper_surface"
+        color=np.array([0.1, 0.8, 0.1]),
     )
     table = table_builder.build(name="table")
-    table.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
     table.lock_motion()
     return table
-
-
-def load_table_2(
-        scene: sapien.Scene,
-        surface_size=np.array([1.6, 0.8, 0.05]),
-        leg_size=np.array([0.05, 0.1, 1.0]),
-        leg_pos_x=0.7,
-        foot_size=np.array([0.08, 0.6, 0.05]),
-        root_position=np.array([1.5, 0.0, 0.0]),
-        root_angle=0.
-):
-    """
-    The origin is at the middle of the bottom of the four legs
-    """
-    table_builder = scene.create_actor_builder()
-    # foots
-    foot_pos_z = foot_size[2] / 2
-    table_builder.add_box_collision(
-        sapien.Pose(p=np.array([-leg_pos_x, 0, foot_pos_z])),
-        half_size=foot_size / 2,
-    )
-    table_builder.add_box_visual(
-        sapien.Pose(p=np.array([-leg_pos_x, 0, foot_pos_z])),
-        half_size=foot_size / 2,
-    )
-    table_builder.add_box_collision(
-        sapien.Pose(p=np.array([leg_pos_x, 0, foot_pos_z])),
-        half_size=foot_size / 2,
-    )
-    table_builder.add_box_visual(
-        sapien.Pose(p=np.array([leg_pos_x, 0, foot_pos_z])),
-        half_size=foot_size / 2,
-    )
-    # legs
-    leg_pos_z = leg_size[2] / 2 + foot_size[2]
-    table_builder.add_box_collision(
-        sapien.Pose(p=np.array([-leg_pos_x, 0, leg_pos_z])),
-        half_size=leg_size / 2,
-    )
-    table_builder.add_box_visual(
-        sapien.Pose(p=np.array([-leg_pos_x, 0, leg_pos_z])),
-        half_size=leg_size / 2,
-    )
-    table_builder.add_box_collision(
-        sapien.Pose(p=np.array([leg_pos_x, 0, leg_pos_z])),
-        half_size=leg_size / 2,
-    )
-    table_builder.add_box_visual(
-        sapien.Pose(p=np.array([leg_pos_x, 0, leg_pos_z])),
-        half_size=leg_size / 2,
-    )
-    # upper surface
-    # surface_size = np.array([1.0, 1.6, 0.05])
-    surface_pos_x = 0.0
-    surface_pos_y = 0.0
-    surface_pos_z = foot_size[2] + leg_size[2] + surface_size[2] / 2
-    table_builder.add_box_collision(
-        sapien.Pose(p=np.array([surface_pos_x, surface_pos_y, surface_pos_z])),
-        half_size=surface_size / 2,
-    )
-    table_builder.add_box_visual(
-        sapien.Pose(p=np.array([surface_pos_x, surface_pos_y, surface_pos_z])),
-        half_size=surface_size / 2,
-        color=np.array([1, 0.5, 0.]),
-        name="upper_surface"
-    )
-    table = table_builder.build(name="table_2")
-    table.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
-    table.lock_motion()
-    return table
-
-
-def load_storage_box(
-        scene: sapien.Scene,
-        box_size=np.array([0.3, 0.3, 0.05]),
-        thickness=0.005,
-        # color=np.array([0.6, 0.3, 0]),
-        color=np.array([1.0, 1.0, 1.0]),
-        root_position=np.array([1., 0.0, 0.0]),
-        root_angle=0.
-):
-    box_builder = scene.create_actor_builder()
-
-    # bottom
-    box_builder.add_box_collision(
-        sapien.Pose(p=np.array([0, 0, 0])),
-        half_size=np.array([box_size[0], box_size[1], thickness]) / 2,
-    )
-    box_builder.add_box_visual(
-        sapien.Pose(p=np.array([0, 0, 0])),
-        half_size=np.array([box_size[0], box_size[1], thickness]) / 2,
-        # color=np.array([0, 0, 0]),
-        color=color / 2,
-        name="bottom_surface"
-    )
-    # sides
-    side_x = box_size[0] / 2 - thickness / 2
-    side_y = box_size[1] / 2 - thickness / 2
-    side_z = thickness + box_size[2] / 2
-    box_builder.add_box_collision(
-        sapien.Pose(p=np.array([side_x, 0, side_z])),
-        half_size=np.array([thickness, box_size[1], box_size[2]]) / 2,
-    )
-    box_builder.add_box_visual(
-        sapien.Pose(p=np.array([side_x, 0, side_z])),
-        half_size=np.array([thickness, box_size[1], box_size[2]]) / 2,
-        color=color
-    )
-    box_builder.add_box_collision(
-        sapien.Pose(p=np.array([-side_x, 0, side_z])),
-        half_size=np.array([thickness, box_size[1], box_size[2]]) / 2,
-    )
-    box_builder.add_box_visual(
-        sapien.Pose(p=np.array([-side_x, 0, side_z])),
-        half_size=np.array([thickness, box_size[1], box_size[2]]) / 2,
-        color=color
-    )
-    box_builder.add_box_collision(
-        sapien.Pose(p=np.array([0, side_y, side_z])),
-        half_size=np.array([box_size[0], thickness, box_size[2]]) / 2,
-    )
-    box_builder.add_box_visual(
-        sapien.Pose(p=np.array([0, side_y, side_z])),
-        half_size=np.array([box_size[0], thickness, box_size[2]]) / 2,
-        color=color
-    )
-    box_builder.add_box_collision(
-        sapien.Pose(p=np.array([0, -side_y, side_z])),
-        half_size=np.array([box_size[0], thickness, box_size[2]]) / 2,
-    )
-    box_builder.add_box_visual(
-        sapien.Pose(p=np.array([0, -side_y, side_z])),
-        half_size=np.array([box_size[0], thickness, box_size[2]]) / 2,
-        color=color
-    )
-    storage_box = box_builder.build(name="storage_box")
-    storage_box.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
-    storage_box.lock_motion()
-    return storage_box
-
-
-def load_blocks_on_table(scene: sapien.Scene):
-    blocks_builder = scene.create_actor_builder()
-
-    block_size = np.array([0.15, 0.05, 0.05])
-
-    blocks_builder.add_box_collision(
-        sapien.Pose(p=np.array([0.5, 0, 1.0])),
-        half_size=block_size / 2,
-    )
-    blocks_builder.add_box_visual(
-        sapien.Pose(p=np.array([0.5, 0, 1.0])),
-        half_size=block_size / 2,
-        color=np.array([1, 0, 0])
-    )
-    block = blocks_builder.build(name="block")
-    return block
 
 
 def load_lab_scene_urdf(scene: sapien.Scene):
@@ -654,138 +459,27 @@ def load_lab_scene_urdf(scene: sapien.Scene):
 
 
 def build_actor_ycb(
-        model_id: str,
-        scene: sapien.Scene,
-        scale: float = 1.0,
-        physical_material: sapien.PhysicalMaterial = None,
-        density=1000,
-        root_dir=os.path.join(ASSET_DIR, "mani_skill2_ycb"),
-        root_position=np.array([1.0, 1.0, 1.5]),
-        root_angle=0.,
-        allow_dir = []
+    model_id: str,
+    scene: sapien.Scene,
+    scale: float = 1.0,
+    physical_material: sapien.PhysicalMaterial = None,
+    density=1000,
+    root_dir=os.path.join(ASSET_DIR, "mani_skill2_ycb"),
 ):
     builder = scene.create_actor_builder()
     model_dir = os.path.join(root_dir, "models", model_id)
 
     collision_file = os.path.join(model_dir, "collision.obj")
-    if not os.path.exists(collision_file):
-        if len(allow_dir) > 0:
-            for d in allow_dir:
-                collision_file = os.path.join(root_dir,"models", d, model_id, "collision", "collision.obj")
-                if os.path.exists(collision_file):
-                    break
-        else:
-            collision_file = os.path.join(model_dir, "collision", "collision.obj")
-    # print("collision file", collision_file, "scale", scale, "density", density)
-    if isinstance(scale, float):
-        scale = [scale] * 3
-
-    # print(scale)
+    print("collision file", collision_file, "scale", scale, "density"), density
     builder.add_multiple_collisions_from_file(
         filename=collision_file,
-        scale=scale,
+        scale=[scale] * 3,
         material=physical_material,
         density=density,
     )
 
     visual_file = os.path.join(model_dir, "textured.obj")
-    if not os.path.exists(visual_file):
-        if len(allow_dir) > 0:
-            for d in allow_dir:
-                visual_file = os.path.join(root_dir,"models", d, model_id, "poisson", "textured.obj")
-                if os.path.exists(visual_file):
-                    break
-        else:
-            visual_file = os.path.join(model_dir, "poisson", "textured.obj")
-    builder.add_visual_from_file(filename=visual_file, scale=scale)
-
-    actor = builder.build(name=model_id)
-    actor.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
-    return actor
-
-
-def build_actor_egad(
-        model_id: str,
-        scene: sapien.Scene,
-        scale: float = 1.0,
-        physical_material: sapien.PhysicalMaterial = None,
-        render_material: sapien.RenderMaterial = None,
-        density=100,
-        root_dir=os.path.join(ASSET_DIR, "mani_skill2_egad"),
-        root_position=np.array([1.0, 1.0, 1.5]),
-        root_angle=0.
-):
-    builder = scene.create_actor_builder()
-    # A heuristic way to infer split
-    # split = "train" if "_" in model_id else "eval"
-
-    collision_file = os.path.join(root_dir, f"egad_train_set_coacd", f"{model_id}.obj")
-    assert os.path.exists(collision_file)
-    builder.add_multiple_collisions_from_file(
-        filename=collision_file,
-        scale=[scale] * 3,
-        material=physical_material,
-        density=density,
-    )
-
-    visual_file = os.path.join(root_dir, f"egad_train_set", f"{model_id}.obj")
-    builder.add_visual_from_file(
-        filename=visual_file, scale=[scale] * 3, material=render_material
-    )
+    builder.add_visual_from_file(filename=visual_file, scale=[scale] * 3)
 
     actor = builder.build()
-    actor.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
-    return actor
-
-
-def build_actor_real(
-        model_id: str,
-        scene: sapien.Scene,
-        scale: float = 1.0,
-        physical_material: sapien.PhysicalMaterial = None,
-        render_material: sapien.RenderMaterial = None,
-        density=1000,
-        root_dir=os.path.join(ASSET_DIR, "real_assets"),
-        root_position=np.array([1.0, 1.0, 1.5]),
-        root_angle=0.
-):
-
-    builder = scene.create_actor_builder()
-    collision_file = os.path.join(root_dir, "collision",  f"collision.obj") #
-    assert os.path.exists(collision_file)
-    builder.add_multiple_collisions_from_file(
-        filename=collision_file,
-        scale=[scale] * 3,
-        material=physical_material,
-        density=density,
-    )
-
-    visual_file = os.path.join(root_dir, "visual", f"{model_id}.obj")  #
-    builder.add_visual_from_file(
-        filename=visual_file, scale=[scale] * 3, material=render_material
-    )
-
-    actor = builder.build()
-    actor.set_pose(
-        sapien.Pose(
-            root_position,
-            np.array(
-                [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-            )
-        )
-    )
     return actor

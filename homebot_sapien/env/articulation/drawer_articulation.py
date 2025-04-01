@@ -6,7 +6,7 @@ from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 from typing import List
 
 # from pathlib import Path
-ASSET_DIR = os.path.join(os.path.dirname(__file__), "../../asset")
+ASSET_DIR = os.path.join(os.path.dirname(__file__), "../../../asset")
 
 
 def load_drawer_urdf(scene: sapien.Scene, scale=1.0):
