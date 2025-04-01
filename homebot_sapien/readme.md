@@ -21,17 +21,24 @@
         load_lab_wall,
         load_lab_scene_urdf,
     )
+    - [**in use**]
 
 - pick_and_place: 
-    - create own env PickAndPlaceEnv
+    - create own env 
     - from .pick_and_place_articulation import ( 
         load_lab_wall,     load_table_4, )
+    - original version without panda arm 
 
-- pick_and_place_panda & pick_and_place_panda_rl: 
+-  pick_and_place_panda & pick_and_place_panda_real & pick_and_place_panda_rl: 
     - create own env
     - from .pick_and_place_articulation import ( 
         load_lab_wall,     load_table_4, )
     - "_rl": define reward function
+    - **Notice**: 
+        **pick_and_place_panda**: original version [**in use**]
+        **pick_and_place_panda_rl**: original version with rl
+        **pick_and_place_panda_real**: real assets already be added, and added the calibrated camera (without rl) [**in use**]
+        
 
 - pick_and_place_bowl: 
     - create own env PickAndPlaceBowlEnv
@@ -40,6 +47,7 @@
         load_storage_box,
         build_actor_ycb,
     )
+    - [**in use**]
 
 - drawer:
     - create own env PickAndPlaceEnv
@@ -47,6 +55,7 @@
         load_drawers,
         load_table_4,
     )
+    - [**in use**]
 
 
 ### action explanation
