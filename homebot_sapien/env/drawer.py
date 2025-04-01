@@ -17,7 +17,7 @@ from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
 from homebot_sapien.env.utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from Projects.homebot.homebot_sapien.env.articulation.pick_and_place_articulation import (
+from .articulation.pick_and_place_articulation import (
     # load_lab_door,
     # generate_rand_door_config,
     load_lab_wall,
@@ -29,7 +29,7 @@ from Projects.homebot.homebot_sapien.env.articulation.pick_and_place_articulatio
     build_actor_egad,
     ASSET_DIR
 )
-from Projects.homebot.homebot_sapien.env.articulation.drawer_articulation import (
+from .articulation.drawer_articulation import (
     load_drawer_urdf,
     load_drawers,
     load_table_4,

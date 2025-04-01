@@ -123,3 +123,9 @@ imitation data:
                     delta_euler,
                     [gripper_width],
                 ]
+
+## /eval
+
+- eval_imitation_diffusion: eval IL + diffusion 
+- eval_replay: check the action of imitation data (.pkl)
+- eval_il_server: eval IL + diffusion with ldm transfer

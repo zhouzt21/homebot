@@ -134,8 +134,8 @@ def eval_imitation():
     
 
     for i_eval in range(num_eval):
-        # seed = i_eval + 5000
-        seed = 4
+        seed = i_eval + 5000
+        # seed = 4
         env.reset(seed=seed)
 
         model_id_list = [None]

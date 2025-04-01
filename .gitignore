@@ -16,8 +16,12 @@ tmp_dataset
 tmp_dataset_doortexture
 logs
 wandb
-asset/mani_skill2_ycb
-asset/mani_skill2_egad
+# asset/mani_skill2_ycb/models
+asset/mani_skill2_egad/egad_train_set
+asset/mani_skill2_egad/egad_train_set_coacd
+asset/real_assets/*.obj
+asset/partnet_mobility
 pre-commit-repos
+homebot_sapien/env/tmp
 homebot_sapien/eval/tmp
 homebot_sapien/collect/tmp
