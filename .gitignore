@@ -2,15 +2,15 @@
 __pycache__
 texture/
 try/
-*.png
-*.jpg
+# *.png
+# *.jpg
 *.convex.stl
 *.mp4
 *.gif
 *.zip
 # *.obj
 # /*.json
-*.mtl
+# *.mtl
 demos
 tmp_dataset
 tmp_dataset_doortexture
