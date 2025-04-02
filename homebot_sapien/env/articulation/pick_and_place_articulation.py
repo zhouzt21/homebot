@@ -761,8 +761,7 @@ def build_actor_real(
         density=1000,
         root_dir=os.path.join(ASSET_DIR, "real_assets"),
         root_position=np.array([1.0, 1.0, 1.5]),
-        root_angle=0.,
-        along = "y",
+        root_rot = np.array([0., 0., 0., 1.]),
         allow_dir = []
 ):
 
@@ -796,22 +795,6 @@ def build_actor_real(
     )
 
     actor = builder.build()
-    if along == "z":
-        actor.set_pose(
-            sapien.Pose(
-                root_position,
-                np.array(
-                    [np.cos(root_angle / 2), 0.0, np.sin(root_angle / 2), 0.0]  # (w, x, y, z)
-                )
-            )
-        )
-    else:
-        actor.set_pose(
-            sapien.Pose(
-                root_position,
-                np.array(
-                    [np.cos(root_angle / 2), 0.0, 0.0, np.sin(root_angle / 2)]  # (w, x, y, z)
-                )
-            )
-        )
+    actor.set_pose( sapien.Pose(root_position, root_rot) )
+
     return actor

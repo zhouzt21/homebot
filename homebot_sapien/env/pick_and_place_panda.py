@@ -25,7 +25,6 @@ from .articulation.pick_and_place_articulation import (
     load_storage_box,
     load_blocks_on_table,
     build_actor_ycb,
-    build_actor_ycb,
     build_actor_egad,
     ASSET_DIR
 )
@@ -64,8 +63,8 @@ class PickAndPlaceEnv(BaseEnv):
         self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.793, -0.056, 1.505])    # calibrate
-        look_at_dir = np.array([-0.616, 0.044, -0.787])  # rotate
+        cam_p = np.array([0.793, -0.056, 1.505])   
+        look_at_dir = np.array([-0.616, 0.044, -0.787])  
         right_dir = np.array([0.036, 0.999, 0.027])
         self.create_camera(
             position=cam_p,
