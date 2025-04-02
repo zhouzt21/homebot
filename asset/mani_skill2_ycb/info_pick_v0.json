@@ -15,7 +15,8 @@
     "scales": [
       1.0
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir": "along"
   },
   "018_plum": {
     "bbox": {
@@ -33,7 +34,8 @@
     "scales": [
       1.0
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir": "along"
   },
   "017_orange": {
     "bbox": {
@@ -49,9 +51,10 @@
       ]
     },
     "scales": [
-      1.0
+      0.8
     ],
-    "along": "x"
+    "along": "x",
+    "allow_dir": "along"
   },
   "014_lemon": {
     "bbox": {
@@ -69,7 +72,8 @@
     "scales": [
       1.0
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir": "along"
   },
   "012_strawberry": {
     "bbox": {
@@ -87,7 +91,8 @@
     "scales": [
       1.0
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir": "along"
   },
   "013_apple": {
     "bbox": {
@@ -103,9 +108,10 @@
       ]
     },
     "scales": [
-      1.0
+      0.8
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir": "along"
   },
   "016_pear": {
     "bbox": {
@@ -123,7 +129,8 @@
     "scales": [
       1.0
     ],
-    "along": "z"
+    "along": "z",
+    "allow_dir": "along"
   },
   "011_banana": {
     "bbox": {
@@ -141,6 +148,7 @@
     "scales": [
       1.0
     ],
-    "along": "x"
+    "along": "x",
+    "allow_dir": "along"
   }
 }

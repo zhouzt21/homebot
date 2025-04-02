@@ -16,7 +16,7 @@
       0.8
     ],
     "along": "y",
-    "allow_dir":"column"
+    "allow_dir": "column"
   },
   "bottle": {
     "bbox": {
@@ -35,7 +35,7 @@
       0.08
     ],
     "along": "y",
-    "allow_dir":"column"
+    "allow_dir": "column"
   },
   "cola": {
     "bbox": {
@@ -54,6 +54,44 @@
       1.0
     ],
     "along": "y",
-    "allow_dir":"column"
+    "allow_dir": "column"
+  },
+  "book": {
+    "bbox": {
+      "min": [
+        -0.073014996945858,
+        0.0,
+        -0.05556099861860275
+      ],
+      "max": [
+        0.07304199784994125,
+        0.05000000074505806,
+        0.055799998342990875
+      ]
+    },
+    "scales": [
+      1.0
+    ],
+    "along": "x",
+    "allow_dir": "column"
+  },
+  "umbrella_v1": {
+    "bbox": {
+      "min": [
+        -0.11575300246477127,
+        0.0,
+        -0.5883340239524841
+      ],
+      "max": [
+        0.11567399650812149,
+        0.30000001192092896,
+        0.5873180031776428
+      ]
+    },
+    "scales": [
+      0.2
+    ],
+    "along": "z",
+    "allow_dir": "column"
   }
 }

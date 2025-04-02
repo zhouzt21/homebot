@@ -4,7 +4,7 @@ import os
 import numpy as np
 from pathlib import Path
 
-def get_obj_info(obj_path):
+def get_obj_info(obj_path, dir_name):
     mesh = trimesh.load(obj_path)
 
     bbox_min = mesh.bounds[0].tolist()
@@ -23,15 +23,16 @@ def get_obj_info(obj_path):
             "max": bbox_max
         },
         "scales": [float(scale)],
-        "along": along
+        "along": along,
+        "allow_dir": dir_name
     }
 
 def create_json_info(model_dir, output_file):
     info = {}
     
     # allowed_dirs = {"along"} # v0 
-    allowed_dirs = {"column", "box"} # v1
-    # allowed_dirs = {"side", "tiny"} # v2
+    allowed_dirs = {"column"} # v1
+    # allowed_dirs = {"side", "tiny"} # v2, "box"
 
     for dir_name in os.listdir(model_dir):
         if dir_name in allowed_dirs:
@@ -43,7 +44,7 @@ def create_json_info(model_dir, output_file):
                     # model_id = f"{dir_name}/{subdir_name}"
                     model_id = f"{subdir_name}"
                     try:
-                        info[model_id] = get_obj_info(textured_obj_path)
+                        info[model_id] = get_obj_info(textured_obj_path, dir_name)
                     except Exception as e:
                         print(f"processing {textured_obj_path} wrong: {e}")
 
@@ -57,4 +58,4 @@ if __name__ == "__main__":
     create_json_info(model_dir, output_file)
 
 ## info_pick_v0.json: along
-## info_pick_v1.json: column, box
+## info_pick_v1.json: column

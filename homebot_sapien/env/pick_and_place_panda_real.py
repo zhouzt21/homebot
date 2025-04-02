@@ -61,9 +61,9 @@ class PickAndPlaceEnv(BaseEnv):
         self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.763579180, -0.03395012, 1.44071344])    # calibrate   0.793, -0.056, 1.505
-        look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  # rotate  -0.616, 0.044, -0.787
-        right_dir = np.array([0.05021884, 0.99866954, -0.01171393])  #0.036, 0.999, 0.027
+        cam_p = np.array([0.763579180, -0.03395012, 1.44071344])    # ori   0.793, -0.056, 1.505
+        look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  #  ori -0.616, 0.044, -0.787
+        right_dir = np.array([0.05021884, 0.99866954, -0.01171393])  # ori 0.036, 0.999, 0.027
         self.create_camera(
             position=cam_p,
             look_at_dir=look_at_dir,
@@ -72,26 +72,10 @@ class PickAndPlaceEnv(BaseEnv):
             resolution=(640, 480),
             fov=np.deg2rad(44),
         )
-        # self.create_camera(
-        #     position=np.array([0., 1., 1.2]),
-        #     look_at_dir=look_at_p - np.array([0., 1., 1.2]),
-        #     right_dir=np.array([-1, 0, 0]),
-        #     name="forth",
-        #     resolution=(320, 240),
-        #     fov=np.deg2rad(80),
-        # )
 
         self.standard_head_cam_pose = self.cameras["third"].get_pose()
         self.standard_head_cam_fovx = self.cameras["third"].fovx
-        # camera_mount_actor = self.robot.get_links()[-2]
-        # # print(self.robot.get_links())
-        # # print(camera_mount_actor.name)
-        # # exit()
-        #
-        # self.create_camera(
-        #     None, None, None, "wrist", (320, 240), np.deg2rad(60), camera_mount_actor
-        # )
-        # self.standard_wrist_cam_fovx = self.cameras["wrist"].fovx
+
         self.arm_controller = ArmSimpleController(self.robot)
         self.p_scale = 0.01
         self.rot_scale = 0.04
@@ -121,15 +105,14 @@ class PickAndPlaceEnv(BaseEnv):
             ]
         )
         self.reset_joint_values = np.array(
-            # [0., -0.785, 0., -2.356, 0., 1.571, 0.785]
             [0., -0.85, 0., -2.8, 0., 2.1, 0.785]
         )
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
+        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick.json"), "r"))  # v0+v1
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
-        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick_v1.json"), "r"))
+        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick.json"), "r"))  # v0+v1
 
         self.model_db = dict(
             ycb=ycb_models,
@@ -160,7 +143,55 @@ class PickAndPlaceEnv(BaseEnv):
         self.table_top_z = 0.76
         self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
 
-    def reload_objs(self, obj_list=None, egad_ratio=0.5, num_obj=1):   # can change num_obj
+    def compute_init_pose(self, model_type, model_id, rand_p):
+        bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        bbox_min_y = self.model_db[model_type][model_id]["bbox"]["min"][1] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        bbox_min_x = self.model_db[model_type][model_id]["bbox"]["min"][0] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        along = self.model_db[model_type][model_id]["along"]
+        allow_dir = self.model_db[model_type][model_id]["allow_dir"]
+        init_angle = self.np_random.uniform(-np.pi, np.pi)
+
+        # TODO: check ycb dataset's transform (hard)
+        if model_type == "real" and allow_dir == "column":
+            rand = self.np_random.uniform(0,1)
+            rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])          
+            if rand < 0.5:
+                init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                    [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+                init_trans = None
+                init_q = rand_q
+            else: 
+                if  along == "z":
+                    init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                        [0.4, 0.2, self.table_top_z -bbox_min_x + 5e-3])  
+                    ##### change z (along z-axis) to z (along y-axis)
+                    init_trans = "z_to_y"
+                    # tran_q = np.array([0.5, 0.5, 0.5, 0.5])   # x90, y90
+                    tran_q = np.array([0.5, 0.5, -0.5, 0.5])   # x90, z90                
+                    init_q = qmult(rand_q, tran_q)
+                elif along == "y":
+                    init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                        [0.4, 0.1, self.table_top_z- bbox_min_y+ 5e-3])
+                    init_trans = "y_to_z"
+                    tran_q = np.array([np.cos(np.pi/4), np.sin(np.pi/4),0, 0])   # x90  
+                    init_q = qmult(rand_q, tran_q) 
+                else:
+                    init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                        [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+                    init_trans = None
+                    init_q = rand_q
+        else:
+            init_trans = None
+            init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+            init_q = np.array( [np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
+
+        return init_p, init_angle, init_q, init_trans
+
+    def reload_objs(self, obj_list=None, egad_ratio=0.5, num_obj=1):  
         if hasattr(self, "objs"):
             for obj_id, obj_dict in self.objs.items():
                 self.scene.remove_actor(obj_dict["actor"])
@@ -175,32 +206,23 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # egad_list +egad_list +ycb_list
-            obj_list = self.np_random.choice(real_list, num_obj, replace=False)
-            # print(obj_list)
+            # +egad_list ycb_list+
+            obj_list = self.np_random.choice(egad_list + ycb_list+real_list , num_obj, replace=False)
 
-        # obj_list = ["011_banana", ]
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
-            model_id = "umbrella" #"umbrella"
-            bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
-                         self.model_db[model_type][model_id]["scales"][0]
+            # model_id = "book"  #for debug
             num_try = 0
-            obj_invalid, init_p, init_angle, obj = True, None, None, None
+            obj_invalid, init_p, init_angle, init_q, init_trans, obj = True, None, None, None, None, None
             while num_try < 10 and obj_invalid:
                 rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
-                init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                    [0.4, 0.1, self.table_top_z -bbox_min_z + 5e-3]) #  0.4 0.2 0.76-z
-
-                init_angle = self.np_random.uniform(-np.pi, np.pi)
-                # init_angle = 0.0
+                init_p, init_angle, init_q, init_trans = self.compute_init_pose(model_type, model_id, rand_p)
 
                 obj_invalid = False
                 if rand_p[0] < -0.05 and rand_p[1] < -0.05:
                     obj_invalid = True
                 else:
                     for (prev_model_type, prev_model_id), prev_model in self.objs.items():
-                        # print(get_pairwise_contacts(all_contact, prev_model["actor"], obj))
                         if check_intersect_2d_(init_p, self.model_db[model_type][model_id]["bbox"],
                                                self.model_db[model_type][model_id]["scales"][0],
                                                self.objs[(prev_model_type, prev_model_id)]["init_p"],
@@ -209,7 +231,6 @@ class PickAndPlaceEnv(BaseEnv):
                             obj_invalid = True
                             break
                 num_try += 1
-            # print(model_id, init_p, init_angle)
 
             if not obj_invalid:
                 if model_type == "egad":
@@ -239,16 +260,16 @@ class PickAndPlaceEnv(BaseEnv):
                     obj.set_damping(0.1, 0.1)
                 elif model_type == "real":
                     obj = build_actor_real(
-                        model_id, self.scene, root_position=init_p, root_angle=init_angle,
+                        model_id, self.scene, root_position=init_p, root_rot=init_q,
                         density=self.model_db[model_type][model_id]["density"] if "density" in self.model_db[model_type][model_id].keys() else 1000,
                         scale=self.model_db[model_type][model_id]["scales"][0],
                         allow_dir=self.allow_dir
                     )
-                    obj.set_damping(1.0, 0.1)
+                    obj.set_damping(0.1, 0.1)
                 else:
                     raise Exception("unknown data type!")
 
-                self.objs.update({(model_type, model_id): dict(actor=obj, init_p=init_p, init_angle=init_angle)})
+                self.objs.update({(model_type, model_id): dict(actor=obj, init_p=init_p, init_q = init_q, init_trans=init_trans)})
 
     def load_static(self):
         self.scene.set_ambient_light([0.5, 0.5, 0.5])
@@ -607,70 +628,162 @@ class PickAndPlaceEnv(BaseEnv):
         )
         return obs, reward, False, False, info
 
-    def expert_action(self, obj_id, goal_obj_pose, noise_scale=0.0):
-        # phases: before pregrasp, to grasp, close gripper, rotate, pull open
-        actor = self.objs[obj_id]["actor"]
+    def expert_pose_define(self, obj_id):
         init_p = self.objs[obj_id]["init_p"]
-        init_angle = self.objs[obj_id]["init_angle"]
+        init_q =  self.objs[obj_id]["init_q"]
+        init_trans = self.objs[obj_id]["init_trans"]
         along = self.model_db[obj_id[0]][obj_id[1]]["along"]
         obj_z_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][-1] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        obj_z_min = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["min"][-1] * \
+                    self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         obj_y_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][1] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
-        done = False
+        obj_x_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][0] * \
+                    self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        
+        # along==z, cannot exceed gripper width, suppose that |x_max| and |x_min| are almost equal
+        offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0   
+        # deal with real assets: y_min = 0
+        offset_y = obj_y_max / 2 if obj_id[0] == 'real' else 0
+        # along==x,y, cannot exceed gripper height; along ==z, z cannot too low (in following code)
+        offset_z = obj_z_max-0.035 if (obj_z_max > 0.035) else 0    
+        ### trans pose
+        if init_trans == None:        
+            if along == "x":
+                obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                    np.array(
+                        [
+                            [1, 0, 0, 0],
+                            [0, -1, 0, offset_y],
+                            [0, 0, -1, offset_z],
+                            [0, 0, 0, 1],
+                        ]
+                    )
+                )
+            elif along == "y":
+                obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                    np.array(
+                        [
+                            [0, 1, 0, 0],
+                            [1, 0, 0, offset_y],  
+                            [0, 0, -1,offset_z],
+                            [0, 0, 0, 1],  
+                        ]
+                    )
+                )
+            elif along == "z":
+                
+                offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
+        
+                print("offset_z", offset_z)
+                obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                    np.array(
+                        [
+                            ## z1
+                            [0, 0, 1, offset_x],
+                            [0, 1, 0, offset_y],
+                            [-1, 0, 0, offset_z], 
+                            [0, 0, 0, 1],
 
-        if along == "y":
-            obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                            ## z2
+                            # [0, -1, 0, offset_x],
+                            # [0, 0, 1, offset_y],  
+                            # [-1, 0, 0, 0],
+                            # [0, 0, 0, 1],  
+                        ]
+                    )
+                )   
+                
+            obj_T_pregrasp = sapien.Pose(
+                p=np.array([0.0, 0.0, 0.06 + obj_z_max]), q=obj_T_grasp.q  
+            )
+            obj_T_postgrasp = sapien.Pose(
+                p=np.array([0.0, 0.0, 0.1 + obj_z_max]), q=obj_T_grasp.q
+            )
+            obj_T_pregoal = sapien.Pose(
+                    p=np.array([0.0, 0.0, 0.1 + obj_z_max * 2]), q=obj_T_grasp.q
+            )
+        elif init_trans == "z_to_y":
+            ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
                 np.array(
                     [
+                        # ori y
                         [0, 1, 0, 0],
-                        [1, 0, 0, obj_y_max/2],  # 0
-                        [0, 0, -1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
-                        [0, 0, 0, 1],
+                        [1, 0, 0, offset_y],  
+                        [0, 0, -1, offset_z],
+                        [0, 0, 0, 1],  
                     ]
                 )
+            )       
+            from transforms3d.quaternions import qconjugate 
+            combined_q = qmult( qconjugate(init_q),ori_obj_T_grasp.q)
+            obj_T_grasp = sapien.Pose(p=ori_obj_T_grasp.p, q=combined_q)
+            
+            # transform form object frame
+            obj_T_pregrasp = sapien.Pose(
+                p=np.array([0.06+ obj_x_max, 0.0, 0.0]), q=obj_T_grasp.q   
             )
-            init_q = np.array([np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
-        elif along == "x":
-            obj_T_grasp = sapien.Pose.from_transformation_matrix(
-                np.array(
-                    [
-                        [1, 0, 0, 0],
-                        [0, -1, 0, obj_y_max/2],
-                        [0, 0, -1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
-                        [0, 0, 0, 1],
+            obj_T_postgrasp = sapien.Pose(
+                p=np.array([0.1 + obj_x_max, 0.0, 0.0]), q=obj_T_grasp.q
+            )
+            # transform from world frame  
+            obj_T_pregoal = sapien.Pose(
+                    p=np.array([0.0, 0.0 , 0.1 + obj_x_max * 2]), q=ori_obj_T_grasp.q
+            )   
+        elif init_trans == "y_to_z":
+            offset_z = 0.02- np.abs(obj_z_min) if np.abs(obj_z_min) < 0.01 else 0
+            rand = self.np_random.uniform(0,1)     
+            if rand < 0.5:
+                mat =  np.array([
+                        # ori z1
+                        [0, 0, 1, offset_x],
+                        [0, 1, 0, offset_y],
+                        [-1, 0, 0, offset_z], 
+                        [0, 0, 0, 1] 
                     ]
                 )
-            )
-            init_q = np.array([np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
-        elif along == "z":
-            obj_T_grasp = sapien.Pose.from_transformation_matrix(
-                np.array(
-                    [
-                        [0, 0, -1, 0],
-                        [0, 1, 0, obj_y_max/2],
-                        [1, 0, 0, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
-                        [0, 0, 0, 1],
+            else:
+                mat = np.array( [
+                        # ori z2
+                        [0, 0, 1, offset_x],
+                        [0, 1, 0, offset_y],
+                        [-1, 0, 0, offset_z], 
+                        [0, 0, 0, 1]
                     ]
                 )
-            )
-            init_angle = -np.pi / 2  # not sure
-            init_q = np.array([np.cos(init_angle/2), np.sin(init_angle/2), 0.0, 0.0]) 
-                        # [1, 0, 0, 0],
-                        # [0, 1, 0, 0],
-                        # [0, 0, 1, max(obj_z_max - 0.04, -obj_z_max + 0.01)],
-                        # [0, 0, 0, 1],
+            ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(mat) 
+            from transforms3d.quaternions import qconjugate 
+            combined_q = qmult( qconjugate(init_q),ori_obj_T_grasp.q)
+            obj_T_grasp = sapien.Pose(p=ori_obj_T_grasp.p, q=combined_q)
 
-        # init_q = np.array(
-        #     [np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)]  # (w, x, y, z)
-        # )
+            # transform form object frame
+            obj_T_pregrasp = sapien.Pose(
+                p=np.array([0, 0.06+ obj_y_max, 0.0]), q=obj_T_grasp.q   
+            )
+            obj_T_postgrasp = sapien.Pose(
+                p=np.array([0.0, 0.1 + obj_y_max, 0.0]), q=obj_T_grasp.q
+            )
+            # transform from world frame
+            obj_T_pregoal = sapien.Pose(
+                    p=np.array([0.0, 0.0 , 0.1 + obj_y_max]), q=ori_obj_T_grasp.q
+            )
+        else:
+            raise Exception("unknown transform type!") 
+
         init_obj_pose = sapien.Pose( p=init_p, q=init_q  )
 
+        return obj_T_grasp, obj_T_pregrasp, obj_T_postgrasp, obj_T_pregoal, init_obj_pose
+
+    def expert_action(self, obj_id, goal_obj_pose, noise_scale=0.0):
+        # phases: before pregrasp, to grasp, close gripper, rotate, pull open
+        actor = self.objs[obj_id]["actor"]
         obj_pose = actor.get_pose()
-        # print("obj_pose", obj_pose, quat2euler(obj_pose.q))
+        obj_T_grasp, obj_T_pregrasp, obj_T_postgrasp, obj_T_pregoal, init_obj_pose = self.expert_pose_define(obj_id)
 
         desired_grasp_pose: sapien.Pose = None
         desired_gripper_width = None
+        done = False
 
         def apply_noise_to_pose(pose):
             pose.set_p(
@@ -683,42 +796,22 @@ class PickAndPlaceEnv(BaseEnv):
                 )
             )
 
+        print("expert_phase", self.expert_phase)
         if self.expert_phase == 0:
-            obj_T_pregrasp = sapien.Pose(
-                p=np.array([0.0, 0.0, 0.06 + obj_z_max]), q=obj_T_grasp.q
-            )
-            # desired_grasp_pose = obj_pose.transform(obj_T_pregrasp)
             desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
-            # print("desired_grasp_pose", desired_grasp_pose, quat2euler(desired_grasp_pose.q))
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-            # print("processed desired_grasp_pose", desired_grasp_pose, quat2euler(desired_grasp_pose.q))
-
-            # print(self.expert_phase, desired_grasp_pose)
             apply_noise_to_pose(desired_grasp_pose)
 
             # randomize gripper width in phase 0
             desired_gripper_width = self.np_random.uniform(0, self.gripper_limit)
-            # desired_gripper_width = self.gripper_limit + self.np_random.uniform(-0.02, 0.02) * noise_scale
 
             action = self._desired_tcp_to_action(
                 desired_grasp_pose,
                 desired_gripper_width,
             )
-            # print("action", action)
-            # tcp_pose = self._get_tcp_pose()
-            # print("tcp_pose", tcp_pose, quat2euler(tcp_pose.q))
-            # dp = sapien.Pose(p=desired_grasp_pose.p, q=euler2quat(np.array([np.pi, 0, 0])))
-            # oTd = obj_pose.inv().transform(dp)
-            # print(oTd, quat2euler(oTd.q), get_pose_from_rot_pos(quat2mat(oTd.q), oTd.p))
-            # exit()
-
         elif self.expert_phase == 1:
-            # desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = init_obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-
-            # print(desired_grasp_pose, "desired")
-            # print(self.expert_phase, desired_grasp_pose)
             apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
@@ -749,17 +842,9 @@ class PickAndPlaceEnv(BaseEnv):
         elif self.expert_phase == 3:
             gripper_width = self._get_gripper_width()
 
-            obj_T_postgrasp = sapien.Pose(
-                p=np.array([0.0, 0.0, 0.1 + obj_z_max]), q=obj_T_grasp.q
-            )
-            obj_init_pose = sapien.Pose(
-                p=init_p, q=init_q
-            )
-
-            desired_grasp_pose = obj_init_pose.transform(obj_T_postgrasp)
+            desired_grasp_pose = init_obj_pose.transform(obj_T_postgrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # print(self.expert_phase, desired_grasp_pose)
             apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
@@ -771,18 +856,12 @@ class PickAndPlaceEnv(BaseEnv):
                 desired_grasp_pose,
                 desired_gripper_width,
             )
-
         elif self.expert_phase == 4:
             gripper_width = self._get_gripper_width()
-
-            obj_T_pregoal = sapien.Pose(
-                p=np.array([0.0, 0.0, 0.1 + obj_z_max * 2]), q=obj_T_grasp.q
-            )
-
+            #### transform from goal(world)
             desired_grasp_pose = goal_obj_pose.transform(obj_T_pregoal)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # print(self.expert_phase, desired_grasp_pose)
             apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
@@ -794,7 +873,6 @@ class PickAndPlaceEnv(BaseEnv):
                 desired_grasp_pose,
                 desired_gripper_width,
             )
-
         elif self.expert_phase == 5:
             desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
@@ -810,7 +888,6 @@ class PickAndPlaceEnv(BaseEnv):
                 desired_grasp_pose,
                 desired_gripper_width,
             )
-
         elif self.expert_phase == 6:
             desired_grasp_pose = self.reset_tcp_pose
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
@@ -832,10 +909,6 @@ class PickAndPlaceEnv(BaseEnv):
         tcp_pose = self._get_tcp_pose()
         # print(tcp_pose, "tcp")
         if self.expert_phase == 0:
-            # print(tcp_pose.p, desired_grasp_pose.p)
-            # print(tcp_pose.q, desired_grasp_pose.q)
-            # print(np.linalg.norm(tcp_pose.p - desired_grasp_pose.p))
-            # print(abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]))
             if (
                     np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.01
                     and abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]) > 0.95
@@ -852,10 +925,6 @@ class PickAndPlaceEnv(BaseEnv):
                 self.expert_phase = 3
 
         elif self.expert_phase == 3:
-            # print(tcp_pose.p, desired_grasp_pose.p)
-            # print(tcp_pose.q, desired_grasp_pose.q)
-            # print(np.linalg.norm(tcp_pose.p - desired_grasp_pose.p))
-            # print(abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]))
             if (
                     np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.01
                     and abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]) > 0.95
@@ -1046,7 +1115,7 @@ def test():
         domain_randomize=True,
         canonical=True,
         action_relative="none", 
-        allow_dir=["cylindar", "fruit"]  # zzt,"cylinder"
+        allow_dir=["along", "column"]  # zzt,"
     )
     env.reset(seed=200)
     obs = env.get_observation()
@@ -1077,7 +1146,7 @@ def test_expert_grasp():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        allow_dir=["cylinder", "fruit"]  #"cylinder",
+        allow_dir=["along", "column"] #,
     )
 
     env = cano_pick_env
