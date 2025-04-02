@@ -116,7 +116,7 @@ def eval_imitation():
         domain_randomize=True,
         canonical=True,
         action_relative="tool", #"none",
-        allow_dir=["fruit"]
+        allow_dir=["along"]
     )
 
     cameras = ["third"] #, "wrist"

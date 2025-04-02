@@ -15,7 +15,8 @@
     "scales": [
       0.8
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir":"column"
   },
   "bottle": {
     "bbox": {
@@ -33,7 +34,8 @@
     "scales": [
       0.08
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir":"column"
   },
   "cola": {
     "bbox": {
@@ -51,6 +53,7 @@
     "scales": [
       1.0
     ],
-    "along": "y"
+    "along": "y",
+    "allow_dir":"column"
   }
 }

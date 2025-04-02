@@ -66,9 +66,6 @@ policy_config = {
     'vq': False,
 }
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240415_083018/policy_step_200000_seed_0.ckpt"  # two obs xarm
-# ckpt_path = "/root/data/diffusion_policy_checkpoints/20240417_024027/policy_step_200000_seed_0.ckpt"  # one obs xarm
-# ckpt_path = "/root/data/diffusion_policy_checkpoints/20240422_212001/policy_step_200000_seed_0.ckpt"
-# ckpt_path = "/root/data/diffusion_policy_checkpoints/20240424_122944/policy_step_400000_seed_0.ckpt"
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240915_133854/policy_step_500000_seed_0.ckpt"
 # ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250228_211805/policy_step_2000_seed_0.ckpt"
 # ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250303_115710/policy_step_15000_seed_0.ckpt"
@@ -147,7 +144,7 @@ def eval_imitation():
         domain_randomize=True,
         canonical=True,
         action_relative="none",
-        allow_dir=["fruit"]
+        allow_dir=["along"]
     )
 
     # cameras = ["third", "wrist"]

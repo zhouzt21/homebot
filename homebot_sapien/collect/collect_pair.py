@@ -35,7 +35,7 @@ def collect_rand_and_cano_data():
     #     format="FFMPEG",
     #     codec="h264",
     # )
-    allow_dir = ["fruit"]  # v0
+    allow_dir = ["along"]  # v0
 
     rand_pick_env = PickAndPlaceEnv(
         use_gui=False,

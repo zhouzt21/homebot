@@ -29,8 +29,8 @@ def get_obj_info(obj_path):
 def create_json_info(model_dir, output_file):
     info = {}
     
-    allowed_dirs = {"fruit"} # v0 
-    # allowed_dirs = {"box", "cylinder"} # v1
+    # allowed_dirs = {"along"} # v0 
+    allowed_dirs = {"column", "box"} # v1
     # allowed_dirs = {"side", "tiny"} # v2
 
     for dir_name in os.listdir(model_dir):
@@ -53,8 +53,8 @@ def create_json_info(model_dir, output_file):
 
 if __name__ == "__main__":
     model_dir = "./models"
-    output_file = "info_pick_v0.json"
+    output_file = "info_pick_v1.json"
     create_json_info(model_dir, output_file)
 
-## info_pick_v0.json: box, cyliner, fruit
-## info_pick_v1.json: side, tiny
+## info_pick_v0.json: along
+## info_pick_v1.json: column, box

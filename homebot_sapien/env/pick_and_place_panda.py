@@ -1045,7 +1045,7 @@ def test():
         domain_randomize=True,
         canonical=True,
         action_relative="none", 
-        allow_dir=["fruit"]  # zzt
+        allow_dir=["along"]  # zzt
     )
     obs = env.get_observation()
 
