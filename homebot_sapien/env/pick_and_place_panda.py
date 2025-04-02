@@ -187,6 +187,7 @@ class PickAndPlaceEnv(BaseEnv):
             bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
                          self.model_db[model_type][model_id]["scales"][0]
             num_try = 0
+            obj_allow_dir = self.model_db[model_type][model_id]["allow_dir"]
             obj_invalid, init_p, init_angle, obj = True, None, None, None
             while num_try < 10 and obj_invalid:
                 rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
@@ -234,7 +235,7 @@ class PickAndPlaceEnv(BaseEnv):
                                                                                   self.model_db[model_type][
                                                                                       model_id].keys() else 1000,
                         scale=self.model_db[model_type][model_id]["scales"][0],
-                        allow_dir=self.allow_dir
+                        obj_allow_dir=obj_allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
                 else:

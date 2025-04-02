@@ -42,7 +42,7 @@ import requests
 from datetime import datetime
 
 # from Projects.homebot.config import PANDA_DATA
-PANDA_DATA = "/home/zhouzhiting/panda_data"
+PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
 class PickAndPlaceEnv(BaseEnv):
     def __init__(

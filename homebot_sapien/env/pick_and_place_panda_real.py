@@ -16,7 +16,7 @@ from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from homebot_sapien.env.utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from homebot_sapien.env.utils import apply_random_texture,apply_cano_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
 from homebot_sapien.env.articulation.pick_and_place_articulation import (
     # generate_rand_door_config,
     load_lab_wall,
@@ -142,6 +142,15 @@ class PickAndPlaceEnv(BaseEnv):
 
         self.table_top_z = 0.76
         self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
+        storage_box_materials = []
+        for body in self.storage_box.get_visual_bodies():
+            for rs in body.get_render_shapes():
+                if body.name in ["upper_surface", "bottom_surface"]:
+                    apply_cano_texture(rs.material)
+        #         else:
+        #             storage_box_materials.append(rs.material)
+        # apply_cano_texture(storage_box_materials)
+
 
     def compute_init_pose(self, model_type, model_id, rand_p):
         bbox_min_z = self.model_db[model_type][model_id]["bbox"]["min"][-1] * \
@@ -150,8 +159,23 @@ class PickAndPlaceEnv(BaseEnv):
                         self.model_db[model_type][model_id]["scales"][0]
         bbox_min_x = self.model_db[model_type][model_id]["bbox"]["min"][0] * \
                         self.model_db[model_type][model_id]["scales"][0]
+
+        bbox_max_z = self.model_db[model_type][model_id]["bbox"]["max"][-1] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        bbox_max_y = self.model_db[model_type][model_id]["bbox"]["max"][1] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        bbox_max_x = self.model_db[model_type][model_id]["bbox"]["max"][0] * \
+                        self.model_db[model_type][model_id]["scales"][0]
+        
+        offset_x = (bbox_max_x - bbox_min_x) / 2
+        offset_y = (bbox_max_y - bbox_min_y) / 2
+        offset_z = (bbox_max_z - bbox_min_z) / 2
+
         along = self.model_db[model_type][model_id]["along"]
-        allow_dir = self.model_db[model_type][model_id]["allow_dir"]
+        if model_type == "egad":
+            allow_dir = []
+        else:
+            allow_dir = self.model_db[model_type][model_id]["allow_dir"]
         init_angle = self.np_random.uniform(-np.pi, np.pi)
 
         # TODO: check ycb dataset's transform (hard)
@@ -160,7 +184,7 @@ class PickAndPlaceEnv(BaseEnv):
             rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])          
             if rand < 0.5:
                 init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                    [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+                    [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
                 init_trans = None
                 init_q = rand_q
             else: 
@@ -174,22 +198,22 @@ class PickAndPlaceEnv(BaseEnv):
                     init_q = qmult(rand_q, tran_q)
                 elif along == "y":
                     init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                        [0.4, 0.1, self.table_top_z- bbox_min_y+ 5e-3])
+                        [0.4, 0.2, self.table_top_z- bbox_min_y+ 5e-3])
                     init_trans = "y_to_z"
                     tran_q = np.array([np.cos(np.pi/4), np.sin(np.pi/4),0, 0])   # x90  
                     init_q = qmult(rand_q, tran_q) 
                 else:
                     init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                        [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+                        [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
                     init_trans = None
                     init_q = rand_q
         else:
             init_trans = None
             init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                [0.4, 0.1, self.table_top_z-bbox_min_z + 5e-3])
+                [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
             init_q = np.array( [np.cos(init_angle / 2), 0.0, 0.0, np.sin(init_angle / 2)] )
 
-        return init_p, init_angle, init_q, init_trans
+        return init_p, init_angle, init_q, init_trans, (offset_x, offset_y, offset_z)
 
     def reload_objs(self, obj_list=None, egad_ratio=0.5, num_obj=1):  
         if hasattr(self, "objs"):
@@ -206,17 +230,22 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # +egad_list ycb_list+
-            obj_list = self.np_random.choice(egad_list + ycb_list+real_list , num_obj, replace=False)
+            # 
+            obj_list = self.np_random.choice( ycb_list+egad_list+real_list , num_obj, replace=False)
 
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
-            # model_id = "book"  #for debug
+            # model_id = "cola"  #for debug
             num_try = 0
             obj_invalid, init_p, init_angle, init_q, init_trans, obj = True, None, None, None, None, None
+            if model_type == "egad":
+                obj_allow_dir = None
+            else:
+                obj_allow_dir = self.model_db[model_type][model_id]["allow_dir"]
+            # print("obj_allow_dir", obj_allow_dir)
             while num_try < 10 and obj_invalid:
                 rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
-                init_p, init_angle, init_q, init_trans = self.compute_init_pose(model_type, model_id, rand_p)
+                init_p, init_angle, init_q, init_trans, offset = self.compute_init_pose(model_type, model_id, rand_p)
 
                 obj_invalid = False
                 if rand_p[0] < -0.05 and rand_p[1] < -0.05:
@@ -255,7 +284,7 @@ class PickAndPlaceEnv(BaseEnv):
                                                                                   self.model_db[model_type][
                                                                                       model_id].keys() else 1000,
                         scale=self.model_db[model_type][model_id]["scales"][0],
-                        allow_dir=self.allow_dir
+                        obj_allow_dir=obj_allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
                 elif model_type == "real":
@@ -263,13 +292,13 @@ class PickAndPlaceEnv(BaseEnv):
                         model_id, self.scene, root_position=init_p, root_rot=init_q,
                         density=self.model_db[model_type][model_id]["density"] if "density" in self.model_db[model_type][model_id].keys() else 1000,
                         scale=self.model_db[model_type][model_id]["scales"][0],
-                        allow_dir=self.allow_dir
+                        obj_allow_dir=obj_allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
                 else:
                     raise Exception("unknown data type!")
 
-                self.objs.update({(model_type, model_id): dict(actor=obj, init_p=init_p, init_q = init_q, init_trans=init_trans)})
+                self.objs.update({(model_type, model_id): dict(actor=obj, init_p=init_p, init_q = init_q, init_trans=init_trans, offset=offset)})
 
     def load_static(self):
         self.scene.set_ambient_light([0.5, 0.5, 0.5])
@@ -278,14 +307,6 @@ class PickAndPlaceEnv(BaseEnv):
         )
         # self.scene.add_directional_light([1, 0, -1], [0.9, 0.8, 0.8], shadow=False)
         self.scene.add_directional_light([0, 1, 1], [0.9, 0.8, 0.8], shadow=False)
-        # self.scene.add_spot_light(
-        #     np.array([0, 0, 1.5]),
-        #     direction=np.array([0, 0, -1]),
-        #     inner_fov=0.3,
-        #     outer_fov=1.0,
-        #     color=np.array([0.5, 0.5, 0.5]),
-        #     shadow=False,
-        # )
 
         physical_material = self.scene.create_physical_material(1.0, 1.0, 0.0)
         render_material = self.renderer.create_material()
@@ -298,7 +319,6 @@ class PickAndPlaceEnv(BaseEnv):
         # self.table2 = load_table_2(self.scene, root_position=np.array([1., 2., 0]))
         # Add room walls
         self.room_wall1 = load_lab_wall(self.scene, [-1.0, 0.0], 10.0)
-        # self.room_wall2 = load_lab_wall(self.scene, [0.0, -5.0], 10.0, np.pi / 2)
 
         self.walls = [
             self.room_wall1,  # self.room_wall2,  # self.room_wall3,
@@ -351,18 +371,7 @@ class PickAndPlaceEnv(BaseEnv):
                     np.array([1.0, 1.0, 1.0]),
                     shadow=True,
                 )
-            # body friction
-            # for link in self.door_articulation.get_links():
-            #     print("link name", link.get_name())
-            #     for cs in link.get_collision_shapes():
-            #         friction = np.random.uniform(0.1, 1.0)
-            #         phys_mtl = self.scene.create_physical_material(static_friction=friction, dynamic_friction=friction, restitution=0.1)
-            #         cs.set_physical_material(phys_mtl)
-            # joint property
-            # for joint in self.door_articulation.get_active_joints():
-            #     print("joint name", joint.get_name())
-            #     joint_friction = np.random.uniform(0.05, 0.2)
-            #     joint.set_friction(joint_friction)
+
         if self.domain_randomize:
             # Visual property randomize
             if not self.canonical:
@@ -404,10 +413,6 @@ class PickAndPlaceEnv(BaseEnv):
                     for vb in vb_list:
                         for rs in vb.get_render_shapes():
                             apply_random_texture(rs.material, self.canonical_random)
-                            # material = rs.material
-                            # # black gripper
-                            # material.set_base_color(np.array([0.0, 0.0, 0.0, 1.0]))
-                            # rs.set_material(material)
 
             else:
                 # ground
@@ -673,10 +678,7 @@ class PickAndPlaceEnv(BaseEnv):
                     )
                 )
             elif along == "z":
-                
                 offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
-        
-                print("offset_z", offset_z)
                 obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
@@ -796,7 +798,7 @@ class PickAndPlaceEnv(BaseEnv):
                 )
             )
 
-        print("expert_phase", self.expert_phase)
+        # print("expert_phase", self.expert_phase)
         if self.expert_phase == 0:
             desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
@@ -905,9 +907,8 @@ class PickAndPlaceEnv(BaseEnv):
             )
         else:
             raise NotImplementedError
-        # TODO: error recovery
         tcp_pose = self._get_tcp_pose()
-        # print(tcp_pose, "tcp")
+
         if self.expert_phase == 0:
             if (
                     np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.01
@@ -944,7 +945,7 @@ class PickAndPlaceEnv(BaseEnv):
                 self.expert_phase = 6
         elif self.expert_phase == 6:
             if (
-                    np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.01
+                    np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.05  # 0.01
                     and abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]) > 0.95
             ):
                 self.expert_phase = 0

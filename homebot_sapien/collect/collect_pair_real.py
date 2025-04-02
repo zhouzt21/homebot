@@ -18,7 +18,7 @@ import json
 import requests
 from datetime import datetime
 
-from homebot_sapien.env.pick_and_place_panda import PickAndPlaceEnv
+from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
 # from Projects.homebot.config import PANDA_DATA
 PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
@@ -29,12 +29,11 @@ def collect_rand_and_cano_data():
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    allow_dir = ["along"]  # v0
+    allow_dir = ["along", "column"]  # v0
 
     rand_pick_env = PickAndPlaceEnv(
         use_gui=False,
         device=device,
-        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
         obs_keys=(),
         domain_randomize=True,
         canonical=False,
@@ -44,21 +43,19 @@ def collect_rand_and_cano_data():
     cano_pick_env = PickAndPlaceEnv(
         use_gui=False,
         device=device,
-        # obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
         allow_dir=allow_dir
     )
 
-    # envs = [rand_pick_env, cano_pick_env]
     envs = {
         "rand": rand_pick_env,
         "cano": cano_pick_env,
     }
     cameras = ["third"]
 
-    save_dir =os.path.join(PANDA_DATA, "sim2sim_pd_2")
+    save_dir =os.path.join(PANDA_DATA, "sim2sim_pd_3")
 
     num_seeds = 10000
     steps_per_obj = 400
@@ -74,9 +71,6 @@ def collect_rand_and_cano_data():
         for idx, (env_key, env) in enumerate(envs.items()):
             env.reset(seed=seed)
 
-            # env.scene.set_timestep(0.01)
-            # env.frame_skip = 5
-
             random_state = np.random.RandomState(seed=seed)
 
             if seed < num_vid:
@@ -88,10 +82,7 @@ def collect_rand_and_cano_data():
                     codec="h264",
                 ) for cam in cameras}
 
-            # data = []
-
             model_id_list = list(env.objs.keys())
-            # print(model_id_list)
             random_state.shuffle(model_id_list)
 
             frame_id = 0
@@ -133,20 +124,11 @@ def collect_rand_and_cano_data():
                             prev_privileged_obs = privileged_obs
 
                             rgb_images = env.capture_images_new(cameras=cameras)
-                            # data_item = {}
-                            # for k, image in rgb_images.items():
-                            #     if "third" in k:
-                            #         data_item[k] = image
 
                             if seed < num_vid:
                                 for cam in cameras:
                                     video_writer[cam].append_data(rgb_images[f"{cam}-rgb"])
-                                # if seed == 0 and idx == 0 and step == 0:
-                                #     # print(data_item.keys())
-                                #     imageio.imwrite(f'third-rgb-0.jpg', rgb_images["third-rgb"])
-
-                            # data.append(data_item)
-                            # data.append(rgb_images["third-rgb"])
+  
                             save_path = os.path.join(save_dir, f"seed_{seed}")
                             os.makedirs(save_path, exist_ok=True)
                             for cam in cameras:
@@ -155,35 +137,21 @@ def collect_rand_and_cano_data():
                         frame_id += 1
 
                         if done:
-                            # print(f"{model_id} done! use step {step}.")
-                            # video_writer.close()
-                            # p = envs[0].objs[model_id]["actor"].get_pose().p
-                            # if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
-                            #     success_list.append(model_id)
-                            # else:
-                            #     print(model_id, p)
                             break
                         elif step == steps_per_obj - 1:
-                            # print(f"{model_id} step used out. ")
                             env.expert_phase = 0
-                            # pass
 
                 except Exception as e:
                     print(seed, env_key, model_id, e)
                     env.expert_phase = 0
 
-            # print(len(frames))
             if idx == 0:
                 cnt_list.append(frame_id)
-                # cnt_list.append(len(data))
-
-            # pickle.dump(data, open(os.path.join(save_dir, f"seed_{seed}_env_{idx}.pkl"), "wb"))
 
             if seed < num_vid:
                 for cam in cameras:
                     video_writer[cam].close()
 
-        # exit()
 
     print(np.sum(cnt_list))
     pickle.dump(cnt_list, open(os.path.join(save_dir, f"cnt.pkl"), "wb"))

@@ -16,14 +16,9 @@ from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2eu
 
 from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
 from .articulation.pick_and_place_articulation import (
-    # load_lab_door,
-    # generate_rand_door_config,
     load_lab_wall,
-    # load_lab_scene_urdf,
     load_table_4,
-    load_table_2,
     load_storage_box,
-    load_blocks_on_table,
     build_actor_ycb,
     build_actor_egad,
     ASSET_DIR
@@ -36,7 +31,7 @@ import requests
 from datetime import datetime
 
 # from Projects.homebot.config import PANDA_DATA
-PANDA_DATA = "/home/zhouzhiting/panda_data"
+PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
 class PickAndPlaceEnv(BaseEnv):
     def __init__(

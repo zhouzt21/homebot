@@ -523,7 +523,7 @@ def load_table_2(
 
 def load_storage_box(
         scene: sapien.Scene,
-        box_size=np.array([0.3, 0.3, 0.05]),
+        box_size=np.array([0.3, 0.27, 0.05]),
         thickness=0.005,
         # color=np.array([0.6, 0.3, 0]),
         color=np.array([1.0, 1.0, 1.0]),
@@ -540,8 +540,7 @@ def load_storage_box(
     box_builder.add_box_visual(
         sapien.Pose(p=np.array([0, 0, 0])),
         half_size=np.array([box_size[0], box_size[1], thickness]) / 2,
-        # color=np.array([0, 0, 0]),
-        color=color / 2,
+        color=color/ 2,
         name="bottom_surface"
     )
     # sides
@@ -662,25 +661,18 @@ def build_actor_ycb(
         root_dir=os.path.join(ASSET_DIR, "mani_skill2_ycb"),
         root_position=np.array([1.0, 1.0, 1.5]),
         root_angle=0.,
-        allow_dir = []
+        obj_allow_dir = "along"
 ):
     builder = scene.create_actor_builder()
     model_dir = os.path.join(root_dir, "models", model_id)
 
     collision_file = os.path.join(model_dir, "collision.obj")
     if not os.path.exists(collision_file):
-        if len(allow_dir) > 0:
-            for d in allow_dir:
-                collision_file = os.path.join(root_dir,"models", d, model_id, "collision", "collision.obj")
-                if os.path.exists(collision_file):
-                    break
-        else:
-            collision_file = os.path.join(model_dir, "collision", "collision.obj")
-    # print("collision file", collision_file, "scale", scale, "density", density)
+        collision_file = os.path.join(root_dir,"models", obj_allow_dir, model_id, "collision", "collision.obj")
+
     if isinstance(scale, float):
         scale = [scale] * 3
 
-    # print(scale)
     builder.add_multiple_collisions_from_file(
         filename=collision_file,
         scale=scale,
@@ -690,13 +682,7 @@ def build_actor_ycb(
 
     visual_file = os.path.join(model_dir, "textured.obj")
     if not os.path.exists(visual_file):
-        if len(allow_dir) > 0:
-            for d in allow_dir:
-                visual_file = os.path.join(root_dir,"models", d, model_id, "poisson", "textured.obj")
-                if os.path.exists(visual_file):
-                    break
-        else:
-            visual_file = os.path.join(model_dir, "poisson", "textured.obj")
+        visual_file = os.path.join(root_dir,"models", obj_allow_dir, model_id, "poisson", "textured.obj")
     builder.add_visual_from_file(filename=visual_file, scale=scale)
 
     actor = builder.build(name=model_id)
@@ -762,18 +748,11 @@ def build_actor_real(
         root_dir=os.path.join(ASSET_DIR, "real_assets"),
         root_position=np.array([1.0, 1.0, 1.5]),
         root_rot = np.array([0., 0., 0., 1.]),
-        allow_dir = []
+        obj_allow_dir = "along"
 ):
 
     builder = scene.create_actor_builder()
-
-    if len(allow_dir) > 0:
-        for d in allow_dir:
-            collision_file = os.path.join(root_dir, d, "collision" ,f"{model_id}_collision.obj")
-            if os.path.exists(collision_file):
-                break
-    else:
-        collision_file = os.path.join(root_dir, "collision", f"{model_id}_collision.obj")
+    collision_file = os.path.join(root_dir, obj_allow_dir, "collision", f"{model_id}_collision.obj")
 
     builder.add_multiple_collisions_from_file(   # without convex
         filename=collision_file,
@@ -782,13 +761,7 @@ def build_actor_real(
         density=density,
     )
 
-    if len(allow_dir) > 0:
-        for d in allow_dir:
-            visual_file = os.path.join(root_dir, d, f"{model_id}.glb")  #
-            if os.path.exists(visual_file):
-                break
-    else:
-        visual_file = os.path.join(root_dir, f"{model_id}.glb")  #
+    visual_file = os.path.join(root_dir, obj_allow_dir, f"{model_id}.glb")  #
 
     builder.add_visual_from_file(
         filename=visual_file, scale=[scale] * 3, material=render_material

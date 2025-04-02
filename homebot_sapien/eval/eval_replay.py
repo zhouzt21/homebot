@@ -19,7 +19,7 @@ from homebot.homebot_sapien.env.pick_and_place_panda import PickAndPlaceEnv
 # in docker
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_policy_1/", "norm_stats.pkl"), "rb"))
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_drawer_0915/", "norm_stats_1.pkl"), "rb"))
-OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/panda_data/cano_policy_pd_1/", "norm_stats_1.pkl"), "rb"))
+OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/Data/panda_data/cano_policy_pd_1/", "norm_stats_1.pkl"), "rb"))
 
 pose_gripper_mean = np.concatenate(
     [
