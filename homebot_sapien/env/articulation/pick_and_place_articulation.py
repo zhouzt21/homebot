@@ -754,9 +754,13 @@ def build_actor_real(
     builder = scene.create_actor_builder()
     collision_file = os.path.join(root_dir, obj_allow_dir, "collision", f"{model_id}_collision.obj")
 
+    if isinstance(scale, (int, float)):
+        scale = [scale] * 3
+    print(scale)
+
     builder.add_multiple_collisions_from_file(   # without convex
         filename=collision_file,
-        scale=[scale] * 3,
+        scale=scale,
         material=physical_material,
         density=density,
     )
@@ -764,7 +768,7 @@ def build_actor_real(
     visual_file = os.path.join(root_dir, obj_allow_dir, f"{model_id}.glb")  #
 
     builder.add_visual_from_file(
-        filename=visual_file, scale=[scale] * 3, material=render_material
+        filename=visual_file, scale=scale, material=render_material
     )
 
     actor = builder.build()

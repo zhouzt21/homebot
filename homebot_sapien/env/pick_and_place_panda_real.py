@@ -112,7 +112,7 @@ class PickAndPlaceEnv(BaseEnv):
         # Set spaces
         ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick.json"), "r"))  # v0+v1
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
-        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick.json"), "r"))  # v0+v1
+        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick.json"), "r"))  # v0+v1+v2  # for debug
 
         self.model_db = dict(
             ycb=ycb_models,
@@ -176,18 +176,20 @@ class PickAndPlaceEnv(BaseEnv):
             allow_dir = []
         else:
             allow_dir = self.model_db[model_type][model_id]["allow_dir"]
-        init_angle = self.np_random.uniform(-np.pi, np.pi)
+        init_angle = self.np_random.uniform(-np.pi, np.pi)  # for debug
 
         # TODO: check ycb dataset's transform (hard)
-        if model_type == "real" and allow_dir == "column":
+        allow_list = ["side","column"]
+        if model_type == "real" and allow_dir in allow_list:
             rand = self.np_random.uniform(0,1)
             rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])          
-            if rand < 0.5:
+            if allow_dir=="column" and rand < 0.5:
                 init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
                     [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
                 init_trans = None
                 init_q = rand_q
             else: 
+                # side must trans, and column 50% trans
                 if  along == "z":
                     init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
                         [0.4, 0.2, self.table_top_z -bbox_min_x + 5e-3])  
@@ -230,12 +232,12 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # 
-            obj_list = self.np_random.choice( ycb_list+egad_list+real_list , num_obj, replace=False)
+            # egad_list+  # for debug
+            obj_list = self.np_random.choice( real_list+ycb_list , num_obj, replace=False)
 
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
-            # model_id = "cola"  #for debug
+            # model_id = "paper_cup"  #for debug
             num_try = 0
             obj_invalid, init_p, init_angle, init_q, init_trans, obj = True, None, None, None, None, None
             if model_type == "egad":
@@ -496,7 +498,7 @@ class PickAndPlaceEnv(BaseEnv):
                 self.standard_head_cam_fovx + self.np_random.uniform(*fov_rand_range),
                 compute_y=True,
             )
-            # 取消相机随机变换，直接设置为标准相机位姿与视角
+            # 取消相机随机变换，直接设置为标准相机位姿与视角 for debug
             self.cameras["third"].set_pose(self.standard_head_cam_pose)
             self.cameras["third"].set_fovx(self.standard_head_cam_fovx, compute_y=True)
             # self.cameras["wrist"].set_fovx(
@@ -512,7 +514,6 @@ class PickAndPlaceEnv(BaseEnv):
             low=-0.01, high=0.01
         )
 
-        # init_angle = 0.0
         self.robot.set_root_pose(
             sapien.Pose(
                 init_p,
@@ -550,7 +551,6 @@ class PickAndPlaceEnv(BaseEnv):
         info = {}
 
         if len(action) == 7:
-            # TODO: IK for arm, velocity control for mobile base
             # action is desired base w, desired base v, delta eef pose, binary gripper action in the specified frame
             cur_ee_pose = self._get_tcp_pose()
             cur_relative_ee_pose = self.init_base_pose.inv().transform(cur_ee_pose)
@@ -601,7 +601,7 @@ class PickAndPlaceEnv(BaseEnv):
         )
 
         self.robot.set_drive_target(target_qpos)
-        # self.robot.set_drive_velocity_target(target_qvel)
+
         self.robot.set_qf(
             self.robot.compute_passive_force(
                 external=False, coriolis_and_centrifugal=False
@@ -611,20 +611,13 @@ class PickAndPlaceEnv(BaseEnv):
             self.scene.step()
 
         # TODO: obs, reward, info
-        self._update_observation()  # zzt
+        self._update_observation()  # zzt step may skip update obs for faster rollout
         obs = OrderedDict()
         for key in self.obs_keys:
             obs[key] = self.observation_dict[key]
         is_success = None
         reward = None
 
-        # is_success = self._is_success()
-        # reward = (
-        #         self._reward_door_angle()
-        #         + self._reward_handle_angle()
-        #         + self._reward_approach_handle()
-        # )  # TODO
-        # print("In step, init_base_pose", self.init_base_pose)
         info.update(
             {
                 "is_success": is_success,
@@ -646,6 +639,7 @@ class PickAndPlaceEnv(BaseEnv):
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         obj_x_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][0] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        allow_dir = self.model_db[obj_id[0]][obj_id[1]]["allow_dir"]
         
         # along==z, cannot exceed gripper width, suppose that |x_max| and |x_min| are almost equal
         offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0   
@@ -710,17 +704,34 @@ class PickAndPlaceEnv(BaseEnv):
                     p=np.array([0.0, 0.0, 0.1 + obj_z_max * 2]), q=obj_T_grasp.q
             )
         elif init_trans == "z_to_y":
-            ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
-                np.array(
-                    [
-                        # ori y
-                        [0, 1, 0, 0],
-                        [1, 0, 0, offset_y],  
-                        [0, 0, -1, offset_z],
-                        [0, 0, 0, 1],  
-                    ]
+            if allow_dir == "column":
+                # column use y to grasp
+                ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                    np.array(
+                        [
+                            # ori y
+                            [0, 1, 0, 0],
+                            [1, 0, 0, offset_y],  
+                            [0, 0, -1, offset_z],
+                            [0, 0, 0, 1],  
+                        ]
+                    )
+                )       
+            elif allow_dir == "side":
+                # side use x to grasp  (haven't test yet)
+                ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
+                    np.array(
+                        [
+                            # ori x
+                            [1, 0, 0, 0],
+                            [0, -1, 0, offset_y],
+                            [0, 0, -1, offset_z],
+                            [0, 0, 0, 1],
+                        ]
+                    )
                 )
-            )       
+            else:
+                raise Exception("unsupported allow_dir for z_to_y!")
             from transforms3d.quaternions import qconjugate 
             combined_q = qmult( qconjugate(init_q),ori_obj_T_grasp.q)
             obj_T_grasp = sapien.Pose(p=ori_obj_T_grasp.p, q=combined_q)
@@ -737,26 +748,41 @@ class PickAndPlaceEnv(BaseEnv):
                     p=np.array([0.0, 0.0 , 0.1 + obj_x_max * 2]), q=ori_obj_T_grasp.q
             )   
         elif init_trans == "y_to_z":
-            offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
-            rand = self.np_random.uniform(0,1)     
-            if rand < 0.5:
-                mat =  np.array([
-                        # ori z1
-                        [0, 0, 1, offset_x],
-                        [0, 1, 0, offset_y],
-                        [-1, 0, 0, offset_z], 
-                        [0, 0, 0, 1] 
+            if allow_dir == "column":
+                # column use z to grasp
+                offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
+                rand = self.np_random.uniform(0,1)     
+                if rand < 0.5:
+                    mat =  np.array([
+                            # ori z1
+                            [0, 0, 1, offset_x],
+                            [0, 1, 0, offset_y],
+                            [-1, 0, 0, offset_z], 
+                            [0, 0, 0, 1] 
+                        ]
+                    )
+                else:
+                    mat = np.array( [
+                            # ori z2
+                            [0, 0, 1, offset_x],
+                            [0, 1, 0, offset_y],
+                            [-1, 0, 0, offset_z], 
+                            [0, 0, 0, 1]
+                        ]
+                    )
+            elif allow_dir == "side":
+                # side use x to grasp  (already tested), and must grasp the 'wall' (offset x)
+                mat = np.array(
+                    [
+                        # ori x
+                        [1, 0, 0, self.gripper_limit],
+                        [0, -1, 0, offset_y],
+                        [0, 0, -1, offset_z],
+                        [0, 0, 0, 1],
                     ]
                 )
             else:
-                mat = np.array( [
-                        # ori z2
-                        [0, 0, 1, offset_x],
-                        [0, 1, 0, offset_y],
-                        [-1, 0, 0, offset_z], 
-                        [0, 0, 0, 1]
-                    ]
-                )
+                raise Exception("unsupported allow_dir for y_to_z!")   
             ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(mat) 
             from transforms3d.quaternions import qconjugate 
             combined_q = qmult( qconjugate(init_q),ori_obj_T_grasp.q)
@@ -801,7 +827,7 @@ class PickAndPlaceEnv(BaseEnv):
                 )
             )
 
-        # print("expert_phase", self.expert_phase)
+        # print("expert_phase", self.expert_phase) # for debug
         if self.expert_phase == 0:
             desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
@@ -1150,7 +1176,7 @@ def test_expert_grasp():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        allow_dir=["along", "column"] #,
+        allow_dir=["side"] #,"along", "column"
     )
 
     env = cano_pick_env

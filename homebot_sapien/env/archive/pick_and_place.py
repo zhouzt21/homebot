@@ -7,15 +7,15 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
+from ..base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from .articulation.pick_and_place_articulation import (
+from ..utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from ..articulation.pick_and_place_articulation import (
     load_lab_wall,
     load_table_4,
     load_storage_box,
@@ -23,8 +23,8 @@ from .articulation.pick_and_place_articulation import (
     build_actor_egad,
     ASSET_DIR
 )
-from .robot import load_robot_full
-from .controller.whole_body_controller import BaseArmSimpleController
+from ..robot import load_robot_full
+from ..controller.whole_body_controller import BaseArmSimpleController
 import json
 import pickle
 import requests
