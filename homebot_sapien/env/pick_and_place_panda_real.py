@@ -679,24 +679,27 @@ class PickAndPlaceEnv(BaseEnv):
                 )
             elif along == "z":
                 offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
-                obj_T_grasp = sapien.Pose.from_transformation_matrix(
-                    np.array(
-                        [
-                            ## z1
+                rand = self.np_random.uniform(0,1)     
+                if rand < 0.5:
+                    mat =  np.array([
+                            # ori z1
                             [0, 0, 1, offset_x],
                             [0, 1, 0, offset_y],
                             [-1, 0, 0, offset_z], 
-                            [0, 0, 0, 1],
-
-                            ## z2
-                            # [0, -1, 0, offset_x],
-                            # [0, 0, 1, offset_y],  
-                            # [-1, 0, 0, 0],
-                            # [0, 0, 0, 1],  
+                            [0, 0, 0, 1] 
                         ]
                     )
-                )   
-                
+                else:
+                    mat = np.array( [
+                            # ori z2
+                            [0, 0, 1, offset_x],
+                            [0, 1, 0, offset_y],
+                            [-1, 0, 0, offset_z], 
+                            [0, 0, 0, 1]
+                        ]
+                    )  
+                obj_T_grasp = sapien.Pose.from_transformation_matrix(mat) 
+
             obj_T_pregrasp = sapien.Pose(
                 p=np.array([0.0, 0.0, 0.06 + obj_z_max]), q=obj_T_grasp.q  
             )
@@ -734,7 +737,7 @@ class PickAndPlaceEnv(BaseEnv):
                     p=np.array([0.0, 0.0 , 0.1 + obj_x_max * 2]), q=ori_obj_T_grasp.q
             )   
         elif init_trans == "y_to_z":
-            offset_z = 0.02- np.abs(obj_z_min) if np.abs(obj_z_min) < 0.01 else 0
+            offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
             rand = self.np_random.uniform(0,1)     
             if rand < 0.5:
                 mat =  np.array([
