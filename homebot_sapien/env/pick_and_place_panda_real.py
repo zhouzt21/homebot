@@ -176,20 +176,14 @@ class PickAndPlaceEnv(BaseEnv):
             allow_dir = []
         else:
             allow_dir = self.model_db[model_type][model_id]["allow_dir"]
-        init_angle = self.np_random.uniform(-np.pi, np.pi)  # for debug
 
-        # TODO: check ycb dataset's transform (hard)
+        #  only trans for real column and side, without init_angle randomization
         allow_list = ["side","column"]
         if model_type == "real" and allow_dir in allow_list:
-            rand = self.np_random.uniform(0,1)
-            rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])          
-            if allow_dir=="column" and rand < 0.5:
-                init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                    [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
-                init_trans = None
-                init_q = rand_q
-            else: 
-                # side must trans, and column 50% trans
+            init_angle = 0
+            rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])    
+            # side, column must trans (side cannot support z trans yet)
+            if allow_dir == "column":
                 if  along == "z":
                     init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
                         [0.4, 0.2, self.table_top_z -bbox_min_x + 5e-3])  
@@ -209,7 +203,16 @@ class PickAndPlaceEnv(BaseEnv):
                         [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
                     init_trans = None
                     init_q = rand_q
+            elif allow_dir == "side":
+                if along == "x" or along == "y":
+                    init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
+                        [0.4, 0.2, self.table_top_z- bbox_min_y+ 5e-3])
+                    init_trans = "y_to_z"
+                    tran_q = np.array([np.cos(np.pi/4), np.sin(np.pi/4),0, 0])   # x90  
+                    init_q = qmult(rand_q, tran_q) 
         else:
+            init_angle = self.np_random.uniform(-np.pi, np.pi)  # for debug
+            rand_q = np.array([np.cos(init_angle / 2), 0, 0, np.sin(init_angle / 2)])    
             init_trans = None
             init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
                 [0.4, 0.2, self.table_top_z-bbox_min_z + 5e-3])
@@ -232,12 +235,12 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # egad_list+  # for debug
-            obj_list = self.np_random.choice( real_list+ycb_list , num_obj, replace=False)
+            # egad_list+  # for debug [need] 
+            obj_list = self.np_random.choice(ycb_list+ real_list , num_obj, replace=False)
 
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
-            # model_id = "paper_cup"  #for debug
+            model_id = "pepper_v1"  #for debug
             num_try = 0
             obj_invalid, init_p, init_angle, init_q, init_trans, obj = True, None, None, None, None, None
             if model_type == "egad":
@@ -297,6 +300,10 @@ class PickAndPlaceEnv(BaseEnv):
                         obj_allow_dir=obj_allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
+                    # test different material
+                    # for vb in obj.get_visual_bodies():
+                    #     for rs in vb.get_render_shapes():
+                    #         rs.material.set_base_color(np.array([1.0, 0.0, 0.0, 1.0]))
                 else:
                     raise Exception("unknown data type!")
 
@@ -641,15 +648,13 @@ class PickAndPlaceEnv(BaseEnv):
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         allow_dir = self.model_db[obj_id[0]][obj_id[1]]["allow_dir"]
         
-        # along==z, cannot exceed gripper width, suppose that |x_max| and |x_min| are almost equal
-        offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0   
         # deal with real assets: y_min = 0
         offset_y = obj_y_max / 2 if obj_id[0] == 'real' else 0
-        # along==x,y, cannot exceed gripper height; along ==z, z cannot too low (in following code)
-        offset_z = obj_z_max-0.035 if (obj_z_max > 0.035) else 0    
         ### trans pose
         if init_trans == None:        
-            if along == "x":
+            # grasp along==x,y, cannot exceed gripper height
+            offset_z = obj_z_max-0.035 if (obj_z_max > 0.035) else 0  
+            if along == "x" or along == "z":
                 obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
@@ -671,28 +676,28 @@ class PickAndPlaceEnv(BaseEnv):
                         ]
                     )
                 )
-            elif along == "z":
-                offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
-                rand = self.np_random.uniform(0,1)     
-                if rand < 0.5:
-                    mat =  np.array([
-                            # ori z1
-                            [0, 0, 1, offset_x],
-                            [0, 1, 0, offset_y],
-                            [-1, 0, 0, offset_z], 
-                            [0, 0, 0, 1] 
-                        ]
-                    )
-                else:
-                    mat = np.array( [
-                            # ori z2
-                            [0, 0, 1, offset_x],
-                            [0, 1, 0, offset_y],
-                            [-1, 0, 0, offset_z], 
-                            [0, 0, 0, 1]
-                        ]
-                    )  
-                obj_T_grasp = sapien.Pose.from_transformation_matrix(mat) 
+            # elif along == "z":   #(not that work)
+            #     offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
+            #     rand = self.np_random.uniform(0,1)     
+            #     if rand < 0.5:
+            #         mat =  np.array([
+            #                 # ori z1
+            #                 [0, 0, 1, offset_x],
+            #                 [0, 1, 0, offset_y],
+            #                 [-1, 0, 0, offset_z], 
+            #                 [0, 0, 0, 1] 
+            #             ]
+            #         )
+            #     else:
+            #         mat = np.array( [
+            #                 # ori z2
+            #                 [0, 0, 1, offset_x],
+            #                 [0, 1, 0, offset_y],
+            #                 [-1, 0, 0, offset_z], 
+            #                 [0, 0, 0, 1]
+            #             ]
+            #         )  
+            #     obj_T_grasp = sapien.Pose.from_transformation_matrix(mat) 
 
             obj_T_pregrasp = sapien.Pose(
                 p=np.array([0.0, 0.0, 0.06 + obj_z_max]), q=obj_T_grasp.q  
@@ -704,32 +709,20 @@ class PickAndPlaceEnv(BaseEnv):
                     p=np.array([0.0, 0.0, 0.1 + obj_z_max * 2]), q=obj_T_grasp.q
             )
         elif init_trans == "z_to_y":
-            if allow_dir == "column":
-                # column use y to grasp
+            if allow_dir == "column":   ### only for umbrella
+                # grasp along==x,y, cannot exceed gripper height
+                offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0  
                 ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
-                            # ori y
-                            [0, 1, 0, 0],
+                            # # ori y
+                            [0, 1, 0, offset_x],
                             [1, 0, 0, offset_y],  
-                            [0, 0, -1, offset_z],
+                            [0, 0, -1, 0],
                             [0, 0, 0, 1],  
                         ]
                     )
                 )       
-            elif allow_dir == "side":
-                # side use x to grasp  (haven't test yet)
-                ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
-                    np.array(
-                        [
-                            # ori x
-                            [1, 0, 0, 0],
-                            [0, -1, 0, offset_y],
-                            [0, 0, -1, offset_z],
-                            [0, 0, 0, 1],
-                        ]
-                    )
-                )
             else:
                 raise Exception("unsupported allow_dir for z_to_y!")
             from transforms3d.quaternions import qconjugate 
@@ -748,36 +741,52 @@ class PickAndPlaceEnv(BaseEnv):
                     p=np.array([0.0, 0.0 , 0.1 + obj_x_max * 2]), q=ori_obj_T_grasp.q
             )   
         elif init_trans == "y_to_z":
+            ###   grasp along==x,y, cannot exceed gripper height
+            if obj_id[0] == 'real':    
+                offset_y = obj_y_max - 0.035 if obj_y_max > 0.07 else obj_y_max / 2
+            else:        
+                offset_y = obj_y_max - 0.035 if obj_y_max > 0.035 else 0
+
             if allow_dir == "column":
-                # column use z to grasp
-                offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
-                rand = self.np_random.uniform(0,1)     
-                if rand < 0.5:
-                    mat =  np.array([
-                            # ori z1
-                            [0, 0, 1, offset_x],
-                            [0, 1, 0, offset_y],
-                            [-1, 0, 0, offset_z], 
-                            [0, 0, 0, 1] 
-                        ]
-                    )
-                else:
-                    mat = np.array( [
-                            # ori z2
-                            [0, 0, 1, offset_x],
-                            [0, 1, 0, offset_y],
-                            [-1, 0, 0, offset_z], 
-                            [0, 0, 0, 1]
-                        ]
-                    )
-            elif allow_dir == "side":
-                # side use x to grasp  (already tested), and must grasp the 'wall' (offset x)
+                # column use z to grasp (not that work)
+                # offset_z = max(0.04- np.abs(obj_z_min), (obj_z_min+obj_z_min) /2) if np.abs(obj_z_min) < 0.01 else 0
+                # rand = self.np_random.uniform(0,1)     
+                # if rand < 0.5:
+                #     mat =  np.array([
+                #             # ori z1
+                #             [0, 0, 1, offset_x],
+                #             [0, 1, 0, offset_y],
+                #             [-1, 0, 0, offset_z], 
+                #             [0, 0, 0, 1] 
+                #         ]
+                #     )
+                # else:
+                #     mat = np.array( [
+                #             # ori z2
+                #             [0, 0, 1, offset_x],
+                #             [0, 1, 0, offset_y],
+                #             [-1, 0, 0, offset_z], 
+                #             [0, 0, 0, 1]
+                #         ]
+                #     )
+
                 mat = np.array(
                     [
                         # ori x
-                        [1, 0, 0, self.gripper_limit],
+                        [1, 0, 0, 0],
                         [0, -1, 0, offset_y],
-                        [0, 0, -1, offset_z],
+                        [0, 0, -1, 0],
+                        [0, 0, 0, 1],
+                    ]
+                )
+            elif allow_dir == "side":
+                # side use x to grasp (already tested), and must grasp the 'wall' (offset x)
+                mat = np.array(
+                    [
+                        # ori x 
+                        [1, 0, 0, 0],  
+                        [0, -1, 0, offset_y],
+                        [0, 0, -1, self.gripper_limit ],
                         [0, 0, 0, 1],
                     ]
                 )
@@ -831,10 +840,10 @@ class PickAndPlaceEnv(BaseEnv):
         if self.expert_phase == 0:
             desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
 
             # randomize gripper width in phase 0
-            desired_gripper_width = self.np_random.uniform(0, self.gripper_limit)
+            desired_gripper_width = self.gripper_limit # self.np_random.uniform(0, self.gripper_limit)
 
             action = self._desired_tcp_to_action(
                 desired_grasp_pose,
@@ -843,10 +852,10 @@ class PickAndPlaceEnv(BaseEnv):
         elif self.expert_phase == 1:
             desired_grasp_pose = init_obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -859,10 +868,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -876,10 +885,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = init_obj_pose.transform(obj_T_postgrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -893,10 +902,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = goal_obj_pose.transform(obj_T_pregoal)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -908,10 +917,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -923,10 +932,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = self.reset_tcp_pose
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            apply_noise_to_pose(desired_grasp_pose)
+            # apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
