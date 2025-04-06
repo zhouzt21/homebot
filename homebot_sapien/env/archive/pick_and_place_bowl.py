@@ -7,15 +7,15 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
+from ..base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from .utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from .pick_and_place_articulation import (
+from ..utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from ..articulation.pick_and_place_articulation import (
     # load_lab_door,
     # generate_rand_door_config,
     load_lab_wall,
@@ -27,11 +27,11 @@ from .pick_and_place_articulation import (
     build_actor_egad,
     ASSET_DIR
 )
-from .drawer_articulation import (
+from ..articulation.drawer_articulation import (
     load_table_4,
 )
-from .robot import load_robot_panda
-from .controller.whole_body_controller import ArmSimpleController
+from ..robot import load_robot_panda
+from ..controller.whole_body_controller import ArmSimpleController
 import json
 import pickle
 import requests
@@ -1430,7 +1430,7 @@ def collect_sim2sim_data():
 
                         if prev_privileged_obs is not None and np.all(
                                 np.abs(cano_obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
-                            env_wrapper.env.expert_phase = 0
+                            cano_env.expert_phase = 0
                             break
                         prev_privileged_obs = cano_obs["privileged_obs"]
 
