@@ -523,7 +523,7 @@ def load_table_2(
 
 def load_storage_box(
         scene: sapien.Scene,
-        box_size=np.array([0.3, 0.27, 0.05]),
+        box_size=np.array([0.3, 0.3, 0.05]),
         thickness=0.005,
         # color=np.array([0.6, 0.3, 0]),
         color=np.array([1.0, 1.0, 1.0]),
@@ -619,7 +619,7 @@ def load_lab_scene_urdf(scene: sapien.Scene):
     loader.fix_root_link = True
     loader.load_multiple_collisions_from_file = True
     urdf_path = os.path.join(
-        os.path.dirname(__file__), "../../asset/2004/mobility_cvx.urdf"
+        os.path.dirname(__file__), "../../../asset/2004/mobility_cvx.urdf"
     )
     door_articulation = loader.load(
         urdf_path,

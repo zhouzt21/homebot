@@ -425,7 +425,7 @@ def load_lab_scene_urdf(scene: sapien.Scene):
     loader.fix_root_link = True
     loader.load_multiple_collisions_from_file = True
     urdf_path = os.path.join(
-        os.path.dirname(__file__), "../../asset/2004/mobility_cvx.urdf"
+        os.path.dirname(__file__), "../../../asset/2004/mobility_cvx.urdf"
     )
     door_articulation = loader.load(
         urdf_path,

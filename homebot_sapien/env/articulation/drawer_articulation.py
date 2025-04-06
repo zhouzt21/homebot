@@ -15,7 +15,7 @@ def load_drawer_urdf(scene: sapien.Scene, scale=1.0):
     loader.load_multiple_collisions_from_file = True
     loader.scale = scale
     urdf_path = os.path.join(
-        os.path.dirname(__file__), "../../asset/furniture/drawer_r.urdf"
+        os.path.dirname(__file__), "../../../asset/furniture/drawer_r.urdf" 
     )
     drawer_articulation = loader.load(
         urdf_path,
