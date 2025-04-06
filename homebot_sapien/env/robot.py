@@ -155,7 +155,8 @@ def load_robot_panda(scene: sapien.Scene, arm_control_mode=ArmControlMode.EEF_PO
     # elif arm_control_mode == ArmControlMode.EEF_VEL:
     #     robot_arm_control_params = np.array([0.0, 300, 300])
     # Stiffness, damping, force_limit
-    finger_control_params = np.array([10000, 1000, 10000])
+    # finger_control_params = np.array([10000, 1000, 10000])
+    finger_control_params = np.array([1000, 100, 10000])   #zzt
 
     arm_joint_names = [f"panda_joint{i}" for i in range(1, 8)]
     for joint in robot.get_active_joints():
