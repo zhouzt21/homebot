@@ -240,7 +240,7 @@ class PickAndPlaceEnv(BaseEnv):
 
         print("obj_list", obj_list)
         for model_type, model_id in obj_list:
-            model_id = "pepper_v1"  #for debug
+            # model_id = "pepper_v1"  #for debug
             num_try = 0
             obj_invalid, init_p, init_angle, init_q, init_trans, obj = True, None, None, None, None, None
             if model_type == "egad":
