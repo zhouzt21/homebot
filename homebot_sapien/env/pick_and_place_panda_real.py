@@ -233,14 +233,14 @@ class PickAndPlaceEnv(BaseEnv):
             self.objs = dict()
 
         if obj_list is None:
-            num_egad = int(len(self.model_db["ycb"].keys()) / (1 - egad_ratio) * egad_ratio)
+            num_egad = int( (len(self.model_db["ycb"].keys())+len(self.model_db["real"].keys())) / (1 - egad_ratio) * egad_ratio)
             num_egad = min(num_egad, len(self.model_db["egad"].keys()))
             egad_list = self.np_random.choice(list(self.model_db["egad"].keys()), num_egad, replace=False)
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # egad_list+  # for debug [need] + ycb_list  +egad_list  ycb_list
-            obj_list = self.np_random.choice( real_list , num_obj, replace=False)
+            # egad_list+  # for debug [need] +   ycb_list
+            obj_list = self.np_random.choice( ycb_list+egad_list+real_list , num_obj, replace=False)
 
         for model_type, model_id in obj_list:
             # model_id = "pepper_v1"  #for debug
