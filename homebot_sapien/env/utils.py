@@ -36,9 +36,9 @@ def sample_random_texture(dtd_root: str, np_random: np.random.RandomState):
     return jpg_path
 
 def apply_cano_texture(
-    material: sapien.RenderMaterial
+    material: sapien.RenderMaterial, color: str = "proce_white"
 ):
-    file_path = os.path.join(PANDA_DATA, "texture", "pure", "proce_white.jpg")
+    file_path = os.path.join(PANDA_DATA, "texture", "pure", f"{color}.jpg")
     if isinstance(material, List):
         for m in material:
             m.set_diffuse_texture_from_file(file_path)
