@@ -1265,9 +1265,9 @@ def collect_imitation_data():
 
     cameras = ["third"]
 
-    save_dir = "./tmp/cano_drawer_0919"
+    save_dir = "/home/zhouzhiting/Data/panda_data/single_obj/drawer"
     # save_dir = "try"
-    num_seeds = 1 #5000
+    num_seeds = 5000
     num_vid = 10
     os.makedirs(save_dir, exist_ok=True)
 
@@ -1292,7 +1292,7 @@ def collect_imitation_data():
 
         if seed < num_vid:
             video_writer = {cam: imageio.get_writer(
-                f"tmp/seed_{seed}_cam_{cam}.mp4",
+                f"tmp/seed_{seed}_drawer.mp4",
                 # fps=40,
                 fps=20,
                 format="FFMPEG",
@@ -1398,7 +1398,7 @@ def collect_sim2sim_data():
 
     cameras = ["third"]
 
-    save_dir = "./tmp/data/sim2sim_drawer_0919"
+    save_dir = "./tmp/data/sim2sim_drawer"
     # save_dir = "try"
     num_seeds = 10000
     num_vid = 10
