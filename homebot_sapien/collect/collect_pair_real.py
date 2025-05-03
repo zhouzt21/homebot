@@ -29,15 +29,12 @@ def collect_rand_and_cano_data():
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    allow_dir = ["along", "column"]  # v0
-
     rand_pick_env = PickAndPlaceEnv(
         use_gui=False,
         device=device,
         obs_keys=(),
         domain_randomize=True,
-        canonical=False,
-        allow_dir=allow_dir
+        canonical=False
     )
 
     cano_pick_env = PickAndPlaceEnv(
@@ -45,8 +42,7 @@ def collect_rand_and_cano_data():
         device=device,
         obs_keys=(),
         domain_randomize=True,
-        canonical=True,
-        allow_dir=allow_dir
+        canonical=True
     )
 
     envs = {

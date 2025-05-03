@@ -38,13 +38,12 @@ def collect_imitation_data():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        allow_dir=["along", "column"]
     )
 
     env = cano_pick_env
     cameras = ["third"]
 
-    save_dir = os.path.join(PANDA_DATA, "cano_policy_pd_3")  # 例如500 traj
+    save_dir = os.path.join(PANDA_DATA, "cano_1")  # 例如500 traj
     num_seeds = 5000
     num_vid = 20
     os.makedirs(save_dir, exist_ok=True)

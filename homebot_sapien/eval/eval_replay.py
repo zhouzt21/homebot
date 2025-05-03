@@ -115,8 +115,7 @@ def eval_imitation():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        action_relative="tool", #"none",
-        allow_dir=["along"]
+        action_relative="tool"  #"none",
     )
 
     cameras = ["third"] #, "wrist"

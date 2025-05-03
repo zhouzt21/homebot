@@ -28,7 +28,6 @@ def collect_imitation_data():
         domain_randomize=True,
         canonical=True,
         # canonical=False,
-        allow_dir=["along"]
     )
 
     env = cano_pick_env

@@ -17,8 +17,7 @@ def eval_il_expert():
         device=device,
         obs_keys=(),
         domain_randomize=True,
-        canonical=True,
-        allow_dir=["along"] #, "column", "side"
+        canonical=True
     )
 
     env = cano_pick_env
