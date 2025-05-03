@@ -6,7 +6,7 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from .base import BaseEnv, recover_action #, get_pairwise_contact_impulse
+from .base import BaseEnv, recover_action , get_pairwise_contact_impulse
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate
@@ -377,6 +377,7 @@ class OpenDoorEnv(BaseEnv):
         self.door_articulation.set_qpos(np.zeros((self.door_articulation.dof,)))
         self.init_agv_pose = self._get_agv_pose()
         # print("In reset, init_agv_pose", self.init_agv_pose)
+        self.init_base_pose = self._get_base_pose()
         # reset stage for expert policy
         self.expert_phase = 0
 
@@ -506,7 +507,7 @@ class OpenDoorEnv(BaseEnv):
             )
         )
         handle_pose = self._get_handle_pose()
-        print(handle_pose, "handle_pose")
+        # print(handle_pose, "handle_pose")  # for debug
         desired_grasp_pose: sapien.Pose = None
 
         def apply_noise_to_pose(pose):
@@ -524,15 +525,15 @@ class OpenDoorEnv(BaseEnv):
             handle_T_pregrasp = sapien.Pose(
                 p=np.array([-0.1, 0.0, 0.0]), q=handle_T_grasp.q
             )
-            print(handle_T_pregrasp, "handle_T_pregrasp")
+            # print(handle_T_pregrasp, "handle_T_pregrasp")  # for debug
             desired_grasp_pose = handle_pose.transform(handle_T_pregrasp)
-            print(desired_grasp_pose, "desired_grasp_pose")
+            # print(desired_grasp_pose, "desired_grasp_pose")  # for debug
             apply_noise_to_pose(desired_grasp_pose)
             action = self._desired_tcp_to_action(
                 desired_grasp_pose,
                 0.85 + self.np_random.uniform(-0.02, 0.02) * noise_scale,
             )
-            print(action, "action")
+            # print(action, "action")   # for debug
         elif self.expert_phase == 1:
             desired_grasp_pose = handle_pose.transform(handle_T_grasp)
             apply_noise_to_pose(desired_grasp_pose)
@@ -605,7 +606,7 @@ class OpenDoorEnv(BaseEnv):
                 self.expert_phase = 2
         elif self.expert_phase == 2:
             if self._is_grasp(both_finger=True):
-                print("door joint q", self.door_articulation.get_qpos()[0])
+                # print("door joint q", self.door_articulation.get_qpos()[0])    # for debug
                 if (
                     self.door_articulation.get_qpos()[0] < 0.1 and self.need_door_shut
                 ):  # door is closed, need to rotate
@@ -649,6 +650,28 @@ class OpenDoorEnv(BaseEnv):
             ]
         )
 
+    def get_observation(self, use_image=True):
+        obs = dict()
+        if use_image:
+            image_obs = self.capture_images_new()
+            obs.update(image_obs)
+
+        world_tcp_pose = self._get_tcp_pose()
+        tcp_pose = self.init_base_pose.inv().transform(self._get_tcp_pose())
+        gripper_width = self._get_gripper_width()
+        arm_joints = self.robot.get_qpos()[self.base_arm_controller.arm_joint_indices]
+        obs["tcp_pose"] = np.concatenate([tcp_pose.p, tcp_pose.q])
+        obs["gripper_width"] = gripper_width
+        obs["robot_joints"] = arm_joints
+        obs["privileged_obs"] = np.concatenate(
+            [
+                world_tcp_pose.p,
+                world_tcp_pose.q,
+                [gripper_width],
+            ]
+        )
+        return obs
+
     def _reward_door_angle(self):
         return 0.01 * (self.door_articulation.get_qpos()[0] - np.pi / 10) / (np.pi / 10)
 
@@ -681,6 +704,9 @@ class OpenDoorEnv(BaseEnv):
     def _get_gripper_width(self) -> float:
         qpos = self.robot.get_qpos()
         return 0.85 - qpos[-6]
+
+    def _get_base_pose(self) -> sapien.Pose:
+        return self.robot.get_pose()
 
     def _get_agv_pose(self) -> sapien.Pose:
         if self.agv_link_idx is None:
