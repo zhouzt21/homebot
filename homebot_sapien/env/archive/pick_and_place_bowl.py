@@ -7,15 +7,17 @@ import sapien.core as sapien
 import torch
 import imageio
 from collections import OrderedDict
-from ..base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
+import sys
+sys.path.append("/home/zhouzhiting/Projects/homebot")
+from homebot_sapien.env.base import BaseEnv, recover_action, get_pairwise_contact_impulse, get_pairwise_contacts
 
 # from transforms3d.euler import euler2quat, quat2euler
 from transforms3d.quaternions import qmult, qconjugate, quat2mat, mat2quat
 from typing import List
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 
-from ..utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
-from ..articulation.pick_and_place_articulation import (
+from homebot_sapien.env.utils import apply_random_texture, check_intersect_2d, grasp_pose_process, check_intersect_2d_
+from homebot_sapien.env.articulation.pick_and_place_articulation import (
     # load_lab_door,
     # generate_rand_door_config,
     load_lab_wall,
@@ -27,11 +29,11 @@ from ..articulation.pick_and_place_articulation import (
     build_actor_egad,
     ASSET_DIR
 )
-from ..articulation.drawer_articulation import (
+from homebot_sapien.env.articulation.drawer_articulation import (
     load_table_4,
 )
-from ..robot import load_robot_panda
-from ..controller.whole_body_controller import ArmSimpleController
+from homebot_sapien.env.robot import load_robot_panda
+from homebot_sapien.env.controller.whole_body_controller import ArmSimpleController
 import json
 import pickle
 import requests
@@ -127,15 +129,8 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        ycb_models_all = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
-        # # self.model_db = ycb_models
-        #
-        # egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
-        # # self.model_db = egad_models
-        # self.model_db = dict(
-        #     ycb=ycb_models,
-        #     egad=egad_models
-        # )
+        ycb_models_all = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v2.json"), "r"))
+
         self.obj_infos = {"024_bowl": ycb_models_all["024_bowl"]}
 
         self.reset(seed=0)
@@ -224,12 +219,21 @@ class PickAndPlaceEnv(BaseEnv):
             num_try = 0
             obj_invalid, init_p, init_angle, obj, init_scale = True, None, None, None, None
             while num_try < 10 and obj_invalid:
-                rand_radius = self.np_random.uniform(0.03, 0.06)
-                rand_ratio = self.np_random.uniform(0.9, 1.1)
+                # rand_radius = self.np_random.uniform(0.03, 0.06)
+                # rand_ratio = self.np_random.uniform(0.9, 1.1)
+                # init_scale = np.array([
+                #     rand_radius / obj_info["bbox"]["max"][0],
+                #     rand_radius / obj_info["bbox"]["max"][1],
+                #     rand_radius * rand_ratio / (obj_info["bbox"]["max"][-1] * 2)
+                # ])
+                
+                # 使用固定大小，不添加随机化
+                fixed_radius = 0.045  # 使用0.03到0.06的中间值
+                fixed_ratio = 1.0     # 不变形比例
                 init_scale = np.array([
-                    rand_radius / obj_info["bbox"]["max"][0],
-                    rand_radius / obj_info["bbox"]["max"][1],
-                    rand_radius * rand_ratio / (obj_info["bbox"]["max"][-1] * 2)
+                    fixed_radius / obj_info["bbox"]["max"][0],
+                    fixed_radius / obj_info["bbox"]["max"][1],
+                    fixed_radius * fixed_ratio / (obj_info["bbox"]["max"][-1] * 2)
                 ])
 
                 bbox_min_z = obj_info["bbox"]["min"][-1] * init_scale[-1]
@@ -252,13 +256,14 @@ class PickAndPlaceEnv(BaseEnv):
                     obj = build_actor_ycb(
                         obj_id, self.scene, root_position=init_p, root_angle=init_angle,
                         density=obj_info.get("density", 1000),
-                        scale=init_scale
+                        scale=init_scale,
+                        obj_allow_dir="side"  # side for bowl and plate
                     )
                     obj.set_damping(0.1, 0.1)
                     for body in obj.get_visual_bodies():
                         for rs in body.get_render_shapes():
                             # rs.material.set_base_color(np.concatenate([[0.7, 0.7, 0.7], [0.0]]))
-                            rs.material.set_diffuse_texture_from_file("asset/pure_color_texture/white_08.jpg")
+                            rs.material.set_diffuse_texture_from_file("../../asset/pure_color_texture/proce_white.png")
                 else:
                     raise Exception("unknown data type!")
 
@@ -544,7 +549,7 @@ class PickAndPlaceEnv(BaseEnv):
                     for rs in body.get_render_shapes():
                         # rs.material.set_base_color(np.concatenate([[0.7, 0.7, 0.7], [0.0]]))
                         if self.canonical:
-                            rs.material.set_diffuse_texture_from_file("asset/pure_color_texture/white_07.jpg")
+                            rs.material.set_diffuse_texture_from_file("../../asset/pure_color_texture/proce_white.png")
                         else:
                             apply_random_texture(rs.material, self.canonical_random)
 
@@ -1251,9 +1256,9 @@ def collect_imitation_data():
     env = cano_pick_env
     cameras = ["third"]
 
-    save_dir = "/root/data/cano_bowl_1007"
+    save_dir = "/tmp/bowl"
     # save_dir = "try"
-    num_seeds = 5000
+    num_seeds = 5 #5000
     # num_seeds = 3
     num_vid = 10
     os.makedirs(save_dir, exist_ok=True)
@@ -1626,7 +1631,7 @@ def test():
     #
     # for i in range(11):
     #     w = np.around(white * (i / 10) * 255).astype(np.uint8)
-    #     imageio.imwrite("asset/pure_color_texture/white_{:02d}.jpg".format(i), w)
+    #     imageio.imwrite("../../asset/pure_color_texture/white_{:02d}.jpg".format(i), w)
 
 
 if __name__ == "__main__":
