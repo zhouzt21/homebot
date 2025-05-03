@@ -47,8 +47,7 @@ class PickAndPlaceEnv(BaseEnv):
             obs_keys=tuple(),
             action_relative="tool",
             domain_randomize=True,
-            canonical=True,
-            allow_dir=[]
+            canonical=True
     ):
         self.tcp_link_idx: int = None
         self.agv_link_idx: int = None
@@ -60,7 +59,6 @@ class PickAndPlaceEnv(BaseEnv):
         self.expert_phase = 0
         self.domain_randomize = domain_randomize
         self.canonical = canonical
-        self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
         cam_p = np.array([0.793, -0.056, 1.505])   
@@ -130,7 +128,7 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
         # ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v3.json"), "r"))
-        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick_v0.json"), "r"))
+        ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick.json"), "r"))
         # self.model_db = ycb_models
 
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
@@ -1044,8 +1042,7 @@ def test():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        action_relative="none", 
-        allow_dir=["along"]  # zzt
+        action_relative="none"
     )
     obs = env.get_observation()
 

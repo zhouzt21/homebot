@@ -46,7 +46,6 @@ class PickAndPlaceEnv(BaseEnv):
             action_relative="tool",
             domain_randomize=True,
             canonical=True,
-            allow_dir=[]
     ):
         self.tcp_link_idx: int = None
         self.agv_link_idx: int = None
@@ -58,18 +57,22 @@ class PickAndPlaceEnv(BaseEnv):
         self.expert_phase = 0
         self.domain_randomize = domain_randomize
         self.canonical = canonical
-        self.allow_dir = allow_dir
         super().__init__(use_gui, device, mipmap_levels)
 
-        cam_p = np.array([0.763579180, -0.03395012, 1.44071344])    # ori   0.793, -0.056, 1.505
-        look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  #  ori -0.616, 0.044, -0.787
-        right_dir = np.array([0.05021884, 0.99866954, -0.01171393])  # ori 0.036, 0.999, 0.027
+        ### new
+        # cam_p = np.array([0.763579180, -0.03395012, 1.44071344])   
+        # look_at_dir = np.array([-0.53301526,  0.01688062,  -0.84593722])  
+        # right_dir = np.array([0.05021884, 0.99866954, -0.01171393])  
+        ### origin 
+        cam_p = np.array([0.793, -0.056, 1.505])   
+        look_at_dir = np.array([-0.616, 0.044, -0.787])  
+        right_dir = np.array([0.036, 0.999, 0.027])
         self.create_camera(
             position=cam_p,
             look_at_dir=look_at_dir,
             right_dir=right_dir,
             name="third",
-            resolution=(640, 480),
+            resolution=(320,240),
             fov=np.deg2rad(44),
         )
 
@@ -112,7 +115,7 @@ class PickAndPlaceEnv(BaseEnv):
         # Set spaces
         ycb_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_ycb", "info_pick.json"), "r"))  # v0+v1
         egad_models = json.load(open(os.path.join(ASSET_DIR, "mani_skill2_egad", "info_pick_train_v1.json"), "r"))
-        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick.json"), "r"))  # v0+v1+v2  # for debug
+        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick_avail.json"), "r"))  # v0+v1+v2  # for debug
 
         self.model_db = dict(
             ycb=ycb_models,
@@ -142,11 +145,12 @@ class PickAndPlaceEnv(BaseEnv):
 
         self.table_top_z = 0.76
         self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
-        storage_box_materials = []
-        for body in self.storage_box.get_visual_bodies():
-            for rs in body.get_render_shapes():
-                if body.name in ["upper_surface", "bottom_surface"]:
-                    apply_cano_texture(rs.material)
+        # storage_box_materials = []
+        # for body in self.storage_box.get_visual_bodies():
+        #     for rs in body.get_render_shapes():
+        #         if body.name in ["upper_surface", "bottom_surface"]:
+        #             apply_cano_texture(rs.material)
+
         #         else:
         #             storage_box_materials.append(rs.material)
         # apply_cano_texture(storage_box_materials)
@@ -194,7 +198,7 @@ class PickAndPlaceEnv(BaseEnv):
                     init_q = qmult(rand_q, tran_q)
                 elif along == "y":
                     init_p = np.array([rand_p[0], rand_p[1], 0]) + np.array(
-                        [0.4, 0.2, self.table_top_z- bbox_min_y+ 5e-3])
+                        [0.4, 0.2, self.table_top_z- bbox_min_y+ 5e-3])   
                     init_trans = "y_to_z"
                     tran_q = np.array([np.cos(np.pi/4), np.sin(np.pi/4),0, 0])   # x90  
                     init_q = qmult(rand_q, tran_q) 
@@ -235,10 +239,9 @@ class PickAndPlaceEnv(BaseEnv):
             egad_list = [("egad", model_id) for model_id in egad_list]
             ycb_list = [("ycb", model_id) for model_id in self.model_db["ycb"].keys()]
             real_list = [("real", model_id) for model_id in self.model_db["real"].keys()]
-            # egad_list+  # for debug [need] 
-            obj_list = self.np_random.choice(ycb_list+ real_list , num_obj, replace=False)
+            # egad_list+  # for debug [need] + ycb_list  +egad_list  ycb_list
+            obj_list = self.np_random.choice( real_list , num_obj, replace=False)
 
-        print("obj_list", obj_list)
         for model_type, model_id in obj_list:
             # model_id = "pepper_v1"  #for debug
             num_try = 0
@@ -249,7 +252,7 @@ class PickAndPlaceEnv(BaseEnv):
                 obj_allow_dir = self.model_db[model_type][model_id]["allow_dir"]
             # print("obj_allow_dir", obj_allow_dir)
             while num_try < 10 and obj_invalid:
-                rand_p = self.np_random.uniform(-0.15, 0.15, size=(2,))
+                rand_p = self.np_random.uniform(-0.13, 0.13, size=(2,))    # 0.15
                 init_p, init_angle, init_q, init_trans, offset = self.compute_init_pose(model_type, model_id, rand_p)
 
                 obj_invalid = False
@@ -300,10 +303,6 @@ class PickAndPlaceEnv(BaseEnv):
                         obj_allow_dir=obj_allow_dir
                     )
                     obj.set_damping(0.1, 0.1)
-                    # test different material
-                    # for vb in obj.get_visual_bodies():
-                    #     for rs in vb.get_render_shapes():
-                    #         rs.material.set_base_color(np.array([1.0, 0.0, 0.0, 1.0]))
                 else:
                     raise Exception("unknown data type!")
 
@@ -646,7 +645,10 @@ class PickAndPlaceEnv(BaseEnv):
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         obj_x_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][0] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
-        allow_dir = self.model_db[obj_id[0]][obj_id[1]]["allow_dir"]
+        if obj_id[0] == 'egad':
+            allow_dir = []
+        else:
+            allow_dir = self.model_db[obj_id[0]][obj_id[1]]["allow_dir"]
         
         # deal with real assets: y_min = 0
         offset_y = obj_y_max / 2 if obj_id[0] == 'real' else 0
@@ -840,10 +842,10 @@ class PickAndPlaceEnv(BaseEnv):
         if self.expert_phase == 0:
             desired_grasp_pose = init_obj_pose.transform(obj_T_pregrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
 
             # randomize gripper width in phase 0
-            desired_gripper_width = self.gripper_limit # self.np_random.uniform(0, self.gripper_limit)
+            desired_gripper_width = self.np_random.uniform(0, self.gripper_limit) #  self.gripper_limit
 
             action = self._desired_tcp_to_action(
                 desired_grasp_pose,
@@ -852,10 +854,10 @@ class PickAndPlaceEnv(BaseEnv):
         elif self.expert_phase == 1:
             desired_grasp_pose = init_obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -868,10 +870,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -885,10 +887,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = init_obj_pose.transform(obj_T_postgrasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -902,10 +904,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = goal_obj_pose.transform(obj_T_pregoal)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     gripper_width - self.gripper_scale
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -917,10 +919,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = obj_pose.transform(obj_T_grasp)
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -932,10 +934,10 @@ class PickAndPlaceEnv(BaseEnv):
             desired_grasp_pose = self.reset_tcp_pose
             desired_grasp_pose = grasp_pose_process(desired_grasp_pose)
 
-            # apply_noise_to_pose(desired_grasp_pose)
+            apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
                     self.gripper_limit
-                    # + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
+                    + self.np_random.uniform(-self.gripper_scale / 2, self.gripper_scale / 2) * noise_scale
             )
             desired_gripper_width = np.clip(desired_gripper_width, 0, self.gripper_limit)
 
@@ -1143,7 +1145,6 @@ class PickAndPlaceEnv(BaseEnv):
         else:
             return left_project_impulse > threshold or right_project_impulse > threshold
 
-
 def test():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -1153,8 +1154,7 @@ def test():
         obs_keys=(),
         domain_randomize=True,
         canonical=True,
-        action_relative="none", 
-        allow_dir=["along", "column"]  # zzt,"
+        action_relative="none"
     )
     env.reset(seed=200)
     obs = env.get_observation()
@@ -1174,7 +1174,6 @@ def test():
     print(env._get_gripper_width(), env._get_base_pose(), env._get_tcp_pose().p, quat2euler(env._get_tcp_pose().q))
     print(env.robot.get_qpos().copy()[env.arm_controller.arm_joint_indices])
 
-
 def test_expert_grasp():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -1184,8 +1183,7 @@ def test_expert_grasp():
         device=device,
         obs_keys=(),
         domain_randomize=True,
-        canonical=True,
-        allow_dir=["side"] #,"along", "column"
+        canonical=True
     )
 
     env = cano_pick_env
@@ -1200,7 +1198,7 @@ def test_expert_grasp():
 
     for seed in tqdm(range(num_seeds)):
 
-        seed = 200
+        seed = 6 #200
         env.reset(seed=seed)
         random_state = np.random.RandomState(seed=seed)
         model_id_list = list(env.objs.keys())
@@ -1229,7 +1227,7 @@ def test_expert_grasp():
                 prev_privileged_obs = None
                 for step in range(500):
                     action, done, desired_dict = env.expert_action(
-                        noise_scale=0.5, obj_id=model_id,
+                        noise_scale=0.2, obj_id=model_id,
                         goal_obj_pose=sapien.Pose(
                             p=np.concatenate([np.array([0.4, -0.2]) + goal_p_rand, [0.76]]),
                             q=euler2quat(np.array([0, 0, goal_q_rand]))
