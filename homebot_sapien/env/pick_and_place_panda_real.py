@@ -299,8 +299,7 @@ class PickAndPlaceEnv(BaseEnv):
                     obj = build_actor_real(
                         model_id, self.scene, root_position=init_p, root_rot=init_q,
                         density=self.model_db[model_type][model_id]["density"] if "density" in self.model_db[model_type][model_id].keys() else 1000,
-                        scale=self.model_db[model_type][model_id]["scales"][0],
-                        obj_allow_dir=obj_allow_dir
+                        scale=self.model_db[model_type][model_id]["scales"][0]
                     )
                     obj.set_damping(0.1, 0.1)
                 else:
