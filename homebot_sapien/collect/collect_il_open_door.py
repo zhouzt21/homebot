@@ -85,10 +85,9 @@ def collect_door_data():
                     episode_data['gripper_width'].append(open_door_env._get_gripper_width())
                     episode_data['action'].append(action.copy())
                     
-                    if seed < num_vid:
-                        rgb_image = open_door_env.render()
-                        imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_wrist.jpg"), rgb_image)
-                        video_writer.append_data(rgb_image)
+                    rgb_image = open_door_env.render()
+                    imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_wrist.jpg"), rgb_image)
+                    video_writer.append_data(rgb_image)
                     
                     frame_id += 1
                     
