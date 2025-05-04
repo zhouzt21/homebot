@@ -748,10 +748,14 @@ def build_actor_real(
         root_dir=os.path.join(ASSET_DIR, "real_assets"),
         root_position=np.array([1.0, 1.0, 1.5]),
         root_rot = np.array([0., 0., 0., 1.]),
+        dir = None
 ):
 
     builder = scene.create_actor_builder()
-    collision_file = os.path.join(root_dir, "available", "collision", f"{model_id}_collision.obj")
+    if dir is None:
+        collision_file = os.path.join(root_dir, "available", "collision", f"{model_id}_collision.obj")
+    else:
+        collision_file = os.path.join(root_dir, dir, "collision", f"{model_id}_collision.obj")
 
     if isinstance(scale, (int, float)):
         scale = [scale] * 3
@@ -764,7 +768,10 @@ def build_actor_real(
         density=density,
     )
 
-    visual_file = os.path.join(root_dir,"available",  f"{model_id}.glb")  #
+    if dir is None:
+        visual_file = os.path.join(root_dir,"available",  f"{model_id}.glb")  #
+    else:
+        visual_file = os.path.join(root_dir, dir, f"{model_id}.glb")
 
     builder.add_visual_from_file(
         filename=visual_file, scale=scale, material=render_material
