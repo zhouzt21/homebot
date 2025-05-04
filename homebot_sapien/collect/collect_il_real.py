@@ -8,7 +8,8 @@ import sys
 sys.path.append('/home/zhouzhiting/Projects/homebot')
 
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
-from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
+# from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
+from homebot_sapien.env.pick_and_place_panda_side import PickAndPlaceEnv
 
 PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
 
@@ -43,9 +44,11 @@ def collect_imitation_data():
     env = cano_pick_env
     cameras = ["third"]
 
-    save_dir = os.path.join(PANDA_DATA, "cano_1")  # 例如500 traj
+    save_dir = os.path.join(PANDA_DATA, "side")  # 例如500 traj
     num_seeds = 5000
     num_vid = 20
+    name = "side"
+
     os.makedirs(save_dir, exist_ok=True)
     num_suc = 0
 
@@ -71,7 +74,7 @@ def collect_imitation_data():
                 all_model_ids.append(model_id)
 
                 if seed < num_vid:
-                    video_path = f"tmp/collect_il/{name}/{model_id[1]}"   #change here  
+                    video_path = f"tmp/collect_il/{name}"   #change here  
                     os.makedirs(video_path, exist_ok=True)
                     video_writer = {cam: imageio.get_writer(
                         f"{video_path}/seed_{seed}.mp4", 
