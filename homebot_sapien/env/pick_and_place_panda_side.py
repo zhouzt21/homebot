@@ -111,7 +111,7 @@ class PickAndPlaceEnv(BaseEnv):
         self.joint_scale = (joint_high - joint_low) / 2
         self.joint_mean = (joint_high + joint_low) / 2
         # Set spaces
-        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick_avail.json"), "r"))  # v0+v1+v2  # for debug
+        real_models = json.load(open(os.path.join(ASSET_DIR, "real_assets", "info_pick_visual.json"), "r"))  # v0+v1+v2  # for debug
 
         self.model_db = dict(
             real=real_models
@@ -262,7 +262,8 @@ class PickAndPlaceEnv(BaseEnv):
                     obj = build_actor_real(
                         model_id, self.scene, root_position=init_p, root_rot=init_q,
                         density=self.model_db[model_type][model_id]["density"] if "density" in self.model_db[model_type][model_id].keys() else 1000,
-                        scale=self.model_db[model_type][model_id]["scales"][0]
+                        scale=self.model_db[model_type][model_id]["scales"][0],
+                        dir = "visual_change"
                     )
                     obj.set_damping(0.1, 0.1)
                 else:
