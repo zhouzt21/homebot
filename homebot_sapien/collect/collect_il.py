@@ -28,18 +28,13 @@ def collect_imitation_data():
         domain_randomize=True,
         canonical=True,
         # canonical=False,
-        allow_dir=["along"]
     )
 
     env = cano_pick_env
     cameras = ["third"]
 
-    # save_dir = "/root/data/rand_policy_pd_1"
-    # save_dir = os.path.join(PANDA_DATA, "rand_policy_pd_1")
     save_dir = os.path.join(PANDA_DATA, "cano_policy_pd_2")  # 500 traj for test
 
-    # save_dir = "try"
-    # num_seeds = 5000
     num_seeds = 5000  # cano test
     # num_seeds = 10
     num_vid = 10
@@ -117,25 +112,7 @@ def collect_imitation_data():
                             env.expert_phase = 0
                             break
                         prev_privileged_obs = obs["privileged_obs"]
-                        # print(obs.keys())
-                        # data_item = {}
-                        # for k, image in rgb_images.items():
-                        #     if "third" in k:
-                        #         data_item[k] = image
 
-                        # if seed < num_vid:
-                        #     for cam in cameras:
-                        #         video_writer[cam].append_data(obs[f"{cam}-rgb"])
-                        # if seed == 0 and idx == 0 and step == 0:
-                        #     # print(data_item.keys())
-                        #     imageio.imwrite(f'third-rgb-0.jpg', rgb_images["third-rgb"])
-
-                        # data.append(data_item)
-                        # data.append(rgb_images["third-rgb"])
-
-                        # for cam in cameras:
-                        #     imageio.imwrite(os.path.join(ep_path, f"cam_{cam}_step_{frame_id}.jpg"),
-                        #                     obs[f"{cam}-rgb"])
                         for cam in cameras:
                             image = obs.pop(f"{cam}-rgb")
                             imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{cam}.jpg"), image)
@@ -159,27 +136,6 @@ def collect_imitation_data():
                 # print(seed, ep_id, "s", frame_id)
             else:
                 success_list.append((ep_id, "f", frame_id))
-                # print(seed, ep_id, "f", frame_id)
-
-                # if done:
-                # print(f"{model_id} done! use step {step}.")
-                # video_writer.close()
-                # p = envs[0].objs[model_id]["actor"].get_pose().p
-                # if 0.1 < p[0] < 0.4 and -0.35 < p[1] < -0.05:
-                #     success_list.append(model_id)
-                # else:
-                #     print(model_id, p)
-                # break
-                # elif step == 399:
-                # print(f"{model_id} step used out. ")
-                # pass
-
-            # print(len(frames))
-            # if idx == 0:
-            #     cnt_list.append(frame_id)
-            # cnt_list.append(len(data))
-
-            # pickle.dump(data, open(os.path.join(save_dir, f"seed_{seed}_env_{idx}.pkl"), "wb"))
 
             if seed < num_vid:
                 for writer in video_writer.values():
