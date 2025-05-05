@@ -159,8 +159,8 @@ def collect_imitation_data_multi(n_envs=4):
                             tcp_pose = vec_env.env_method("_get_tcp_pose", indices=[i])[0]
                             episode_data['tcp_pose'].append(convert_pose_to_array(tcp_pose))
                             
-                            # 获取其他数据
-                            episode_data['gripper_width'].append(vec_env.env_method("_get_gripper_width", indices=[i])[0])
+                            # 获取其他数据  TODO: need to be changed into: episode_data directly come from obs
+                            episode_data['gripper_width'].append(vec_env.env_method("_get_gripper_width", indices=[i])[0])  
                             episode_data['robot_joints'].append(vec_env.env_method("get_attr", "robot.get_qpos()", indices=[i])[0].copy())
                             episode_data['privileged_obs'].append(obs["privileged_obs"].copy())
                             episode_data['action'].append(action.copy())
