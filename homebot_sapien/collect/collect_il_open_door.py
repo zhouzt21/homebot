@@ -81,8 +81,12 @@ def collect_door_data():
                     
                     obs = open_door_env.get_observation()
                     
-                    episode_data['tcp_pose'].append(convert_pose_to_array(open_door_env._get_tcp_pose()))
-                    episode_data['gripper_width'].append(open_door_env._get_gripper_width())
+                    # episode_data['tcp_pose'].append(convert_pose_to_array(env._get_tcp_pose()))  ## ??
+                    # episode_data['gripper_width'].append(env._get_gripper_width())  ## ??
+                    episode_data['tcp_pose'].append(obs["tcp_pose"].copy())  
+                    episode_data['gripper_width'].append(obs["gripper_width"].copy())  
+                    episode_data['robot_joints'].append(obs["robot_joints"].copy())  
+                    episode_data['privileged_obs'].append(obs["privileged_obs"].copy())
                     episode_data['action'].append(action.copy())
                     
                     rgb_image = open_door_env.render()
@@ -108,6 +112,8 @@ def collect_door_data():
                 episode_array = {
                     'tcp_pose': np.stack(episode_data['tcp_pose']),
                     'gripper_width': np.array(episode_data['gripper_width']),
+                    'robot_joints': np.stack(episode_data['robot_joints']),
+                    'privileged_obs': np.stack(episode_data['privileged_obs']),
                     'action': np.stack(episode_data['action']),
                 }
                 np.savez(os.path.join(ep_path, "total_steps.npz"), **episode_array)
