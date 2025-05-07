@@ -640,28 +640,38 @@ class PickAndPlaceEnv(BaseEnv):
         along = self.model_db[obj_id[0]][obj_id[1]]["along"]
         obj_z_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][-1] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
-        obj_z_min = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["min"][-1] * \
-                    self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         obj_y_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][1] * \
+                    self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        obj_y_min = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["min"][1] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         obj_x_max = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["max"][0] * \
                     self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
+        obj_x_min = self.model_db[obj_id[0]][obj_id[1]]["bbox"]["min"][0] * \
+                self.model_db[obj_id[0]][obj_id[1]]["scales"][0]
         if obj_id[0] == 'egad':
             allow_dir = []
         else:
             allow_dir = self.model_db[obj_id[0]][obj_id[1]]["allow_dir"]
         
-        # deal with real assets: y_min = 0
-        offset_y = obj_y_max / 2 if obj_id[0] == 'real' else 0
         ### trans pose
         if init_trans == None:        
             # grasp along==x,y, cannot exceed gripper height
             offset_z = obj_z_max-0.035 if (obj_z_max > 0.035) else 0  
-            if along == "x" or along == "z":
+            if obj_id[0] == 'real':
+                offset_x = 0
+                offset_y = obj_y_max / 2
+            elif obj_id[0] == 'ycb':
+                offset_x = (obj_x_max+obj_x_min) /2 
+                offset_y = 0 if obj_id[1] == '011_banana'else (obj_y_max+obj_y_min) /2 
+            else:
+                offset_x = 0
+                offset_y = 0
+                
+            if along == "x" or along == "z":                
                 obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
-                            [1, 0, 0, 0],
+                            [1, 0, 0, offset_x],
                             [0, -1, 0, offset_y],
                             [0, 0, -1, offset_z],
                             [0, 0, 0, 1],
@@ -672,7 +682,7 @@ class PickAndPlaceEnv(BaseEnv):
                 obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
-                            [0, 1, 0, 0],
+                            [0, 1, 0, offset_x],
                             [1, 0, 0, offset_y],  
                             [0, 0, -1,offset_z],
                             [0, 0, 0, 1],  
@@ -716,7 +726,8 @@ class PickAndPlaceEnv(BaseEnv):
         elif init_trans == "z_to_y":
             if allow_dir == "column":   ### only for umbrella
                 # grasp along==x,y, cannot exceed gripper height
-                offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0  
+                offset_x = obj_x_max-0.035 if (obj_x_max > 0.035) else 0 
+                offset_y = obj_y_max / 2 if obj_id[0] == 'real' else 0 
                 ori_obj_T_grasp = sapien.Pose.from_transformation_matrix(
                     np.array(
                         [
@@ -1193,7 +1204,7 @@ def test_expert_grasp():
     env = cano_pick_env
     cameras = ["third"]
 
-    num_seeds = 1  # cano test
+    num_seeds = 10  # cano test
     num_vid = 10
 
     num_suc = 0
@@ -1202,7 +1213,7 @@ def test_expert_grasp():
 
     for seed in tqdm(range(num_seeds)):
 
-        seed = 6 #200
+        seed = seed #200
         env.reset(seed=seed)
         random_state = np.random.RandomState(seed=seed)
         model_id_list = list(env.objs.keys())
