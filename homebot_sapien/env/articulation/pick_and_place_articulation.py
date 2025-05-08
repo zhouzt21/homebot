@@ -759,7 +759,7 @@ def build_actor_real(
 
     if isinstance(scale, (int, float)):
         scale = [scale] * 3
-    print(scale)
+    # print(scale)
 
     builder.add_multiple_collisions_from_file(   # without convex
         filename=collision_file,

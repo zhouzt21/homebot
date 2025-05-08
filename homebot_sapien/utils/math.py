@@ -8,6 +8,16 @@ from transforms3d.euler import mat2euler as mat2eulertuple
 def wrap_to_pi(x):
     x = x % (2 * np.pi)
     x = x - 2 * np.pi * (x > np.pi)
+
+    # # 对 x[2] 应用额外的处理
+    # if isinstance(x, np.ndarray) and len(x) >= 3:
+    #     # 如果在 [-π, -π/2) 区间内，加 π
+    #     if -np.pi <= x[2] < -np.pi/2:
+    #         x[2] += np.pi
+    #     # 如果在 (π/2, π] 区间内，减 π
+    #     elif np.pi/2 < x[2] <= np.pi:
+    #         x[2] -= np.pi    
+    
     return x
 
 

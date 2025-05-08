@@ -413,7 +413,7 @@
       ]
     },
     "scales": [
-      0.2
+      0.35
     ],
     "along": "x",
     "allow_dir": "side"

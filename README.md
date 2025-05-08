@@ -30,3 +30,30 @@ Imitation learning using diffusion policy,
 ```
 python -m homebot_sapien.algorithm.imitate_diffuse
 ```
+
+## New version Usage
+
+### Environment 
+
+- already in use:
+  - pick_and_place_panda
+  - pick_and_place_panda_real
+  - open_door
+  - drawer
+  - pick_and_place_panda_side
+
+### collect
+
+- `homebot/homebot_sapien/collect`
+  - collect il env data for diffusion policy
+    - `collect_il_real.py`, `collect_il_drawer.py`, `collect_il_open_door.py` is in use
+    - need to change `num_seeds`, `save_dir` and `name`
+    - check the env to see if it is the one to collect with
+  
+### eval 
+
+- `homebot/homebot_sapien/eval/eval_imitation_diffusion`
+  - need to change the path of `*.ckpt` and `norm_stats_1.pkl` 
+    - `norm_stats_1.pkl` is in data folder, generate automaticly when trainning diffusion_policy
+  - need to change `num_seeds`, `save_dir` 
+  - check the env to see if it is the one to evaluate with
