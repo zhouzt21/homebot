@@ -8,10 +8,10 @@ import sys
 sys.path.append('/home/zhouzhiting/Projects/homebot')
 
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
-# from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
-from homebot_sapien.env.pick_and_place_panda_side import PickAndPlaceEnv
+from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
+# from homebot_sapien.env.pick_and_place_panda_side import PickAndPlaceEnv
 
-PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
+PANDA_DATA = "/data1/zhouzhiting/Data/panda_data"
 
 def convert_pose_to_array(pose: sapien.Pose):
     """
@@ -44,10 +44,10 @@ def collect_imitation_data():
     env = cano_pick_env
     cameras = ["third"]
 
-    save_dir = os.path.join(PANDA_DATA, "side")  # 例如500 traj
+    save_dir = os.path.join(PANDA_DATA, "cano_2")  # 例如500 traj
     num_seeds = 5000
     num_vid = 20
-    name = "side"
+    name = "cano_2"
 
     os.makedirs(save_dir, exist_ok=True)
     num_suc = 0
@@ -98,8 +98,8 @@ def collect_imitation_data():
                 try:
                     ep_path = os.path.join(save_path, f"ep_{ep_id}")
                     os.makedirs(ep_path, exist_ok=True)
-                    goal_p_rand = random_state.uniform(-0.1, 0.1, size=(2,))
-                    goal_q_rand = random_state.uniform(-0.5, 0.5)
+                    goal_p_rand = 0 # random_state.uniform(-0.1, 0.1, size=(2,))
+                    goal_q_rand = 0 #random_state.uniform(-0.5, 0.5)
 
                     prev_privileged_obs = None
                     for step in range(500):
@@ -113,7 +113,7 @@ def collect_imitation_data():
                         )
                         _, _, _, _, info = env.step(action)
 
-                        if step < 400:
+                        if step < 500:
                             if done:
                                 p = env.objs[model_id]["actor"].get_pose().p
                                 # offset_x, offset_y, offset_z = env.objs[model_id]["offset"]
@@ -123,6 +123,20 @@ def collect_imitation_data():
                                 break
 
                             obs = env.get_observation()
+
+                            if prev_privileged_obs is not None and np.all(
+                                    np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
+                                env.expert_phase = 0
+                                break
+                            prev_privileged_obs = obs["privileged_obs"]
+
+                            for cam in cameras:
+                                image = obs.pop(f"{cam}-rgb")
+                                imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{cam}.jpg"), image)
+                                if seed < num_vid:
+                                    video_writer[cam].append_data(image)
+
+                            frame_id += 1
 
                             # episode_data['tcp_pose'].append(convert_pose_to_array(env._get_tcp_pose()))  ## ??
                             # episode_data['gripper_width'].append(env._get_gripper_width())  ## ??
@@ -135,14 +149,7 @@ def collect_imitation_data():
 
                             episode_data['desired_grasp_pose'].append(convert_pose_to_array(desired_dict["desired_grasp_pose"]))
                             episode_data['desired_gripper_width'].append(desired_dict["desired_gripper_width"])
-
-                            for cam in cameras:
-                                image = obs.pop(f"{cam}-rgb")
-                                imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{cam}.jpg"), image)
-                                if seed < num_vid:
-                                    video_writer[cam].append_data(image)
-
-                            frame_id += 1
+                            
                         else:
                             if done:
                                 break
