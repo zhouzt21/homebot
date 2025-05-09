@@ -11,9 +11,10 @@ from datetime import datetime
 import torchvision.transforms as transforms
 
 sys.path.append("/home/zhouzhiting/Projects")
+sys.path.append("/home/zhouzhiting/Projects/homebot")
 from homebot.homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 # from .drawer import PickAndPlaceEnv
-from homebot_sapien.env.pick_and_place_panda import PickAndPlaceEnv
+from homebot_sapien.env.pick_and_place_panda_real import PickAndPlaceEnv
 from diffusion_policy.policy import DiffusionPolicy
 
 
@@ -21,7 +22,10 @@ from diffusion_policy.policy import DiffusionPolicy
 # in docker
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_policy_1/", "norm_stats.pkl"), "rb"))
 # OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/root/data/cano_drawer_0915/", "norm_stats_1.pkl"), "rb"))
-OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/Data/panda_data/cano_policy_pd_2/", "norm_stats_1.pkl"), "rb"))
+# OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/home/zhouzhiting/Data/panda_data/cano_policy_pd_2/", "norm_stats_1.pkl"), "rb"))
+# OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/data1/zhouzhiting/Data/panda_data/cano_1/", "norm_stats_1.pkl"), "rb"))
+OBS_NORMALIZE_PARAMS = pickle.load(open(os.path.join("/data1/zhouzhiting/Data/panda_data/cano_2/", "norm_stats_1.pkl"), "rb"))
+
 
 pose_gripper_mean = np.concatenate(
     [
@@ -69,7 +73,10 @@ policy_config = {
 # ckpt_path = "/root/data/diffusion_policy_checkpoints/20240915_133854/policy_step_500000_seed_0.ckpt"
 # ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250228_211805/policy_step_2000_seed_0.ckpt"
 # ckpt_path = "/home/zhouzhiting/panda_data/diffusion_policy_checkpoints/20250303_115710/policy_step_15000_seed_0.ckpt"
-ckpt_path = "/home/zhouzhiting/Data/panda_data/diffusion_policy_checkpoints/20250307_191102/policy_step_250000_seed_0.ckpt"
+# ckpt_path = "/home/zhouzhiting/Data/panda_data/diffusion_policy_checkpoints/20250307_191102/policy_step_250000_seed_0.ckpt"
+# ckpt_path = "/data1/zhouzhiting/Data/panda_data/dp_ckpt/cano_1/policy_step_190000_seed_0.ckpt"
+# ckpt_path = "/data1/zhouzhiting/Data/panda_data/dp_ckpt/cano_1/resume/policy_step_248000_seed_0.ckpt"
+ckpt_path = "/data1/zhouzhiting/Data/panda_data/dp_ckpt/cano_2/policy_step_200000_seed_0.ckpt"
 
 
 policy = DiffusionPolicy(policy_config)
@@ -151,42 +158,38 @@ def eval_imitation():
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    save_dir = os.path.join("tmp", stamp)
-
-    num_eval = 10
+    save_dir = os.path.join("tmp", "cano_2", stamp)
     os.makedirs(save_dir, exist_ok=True)
 
+    num_eval = 100
+    num_video = 20
+    
     from tqdm import tqdm
+    num_suc = 0
+    fail_list = []
 
     for i_eval in range(num_eval):
-        seed = i_eval + 1000
-        # seed = 4
-        # save_path = os.path.join(save_dir, f"seed_{seed}")
-        # os.makedirs(save_path, exist_ok=True)
-
+        seed = i_eval + 110
         env.reset(seed=seed)
 
         # random_state = np.random.RandomState(seed=seed)
 
-        # model_id_list = list(env.objs.keys())
-        # print(model_id_list)
-        # random_state.shuffle(model_id_list)
-        model_id_list = [None]
+        model_id_list = list(env.objs.keys())
+        # model_id_list = [None]
+        success = False
 
         for ep_id, model_id in enumerate(model_id_list):
 
-            # ep_path = os.path.join(save_path, f"ep_{ep_id}")
-            # os.makedirs(ep_path, exist_ok=True)
-
-            video_writer = {cam: imageio.get_writer(
-                os.path.join(save_dir, f"seed_{seed}_ep_{ep_id}_cam_{cam}.mp4"),
-                fps=20,
-                format="FFMPEG",
-                codec="h264",
-            ) for cam in cameras}
+            if i_eval < num_video:
+                video_writer = {cam: imageio.get_writer(
+                    os.path.join(save_dir, f"seed_{seed}_ep_{ep_id}_cam_{cam}.mp4"),
+                    fps=20,
+                    format="FFMPEG",
+                    codec="h264",
+                ) for cam in cameras}
 
             num_pred = 40
-            for _ in tqdm(range(num_pred)):
+            for _ in range(num_pred):
                 obs = env.get_observation()
                 image_list = []
                 for cam in cameras:
@@ -248,12 +251,28 @@ def eval_imitation():
                     _, _, _, _, info = env.step(pose_action)
 
                     obs = env.get_observation()
-                    for cam in cameras:
-                        video_writer[cam].append_data(obs[f"{cam}-rgb"])
 
-            for writer in video_writer.values():
-                writer.close()
+                    if i_eval < num_video:
+                        for cam in cameras:
+                            video_writer[cam].append_data(obs[f"{cam}-rgb"])
 
+            final_p = env.objs[model_id]["actor"].get_pose().p
+            if 0.25 < final_p[0] < 0.55 and -0.35 < final_p[1]< -0.05:
+                success = True
+                num_suc += 1
+            else:
+                fail_list.append((seed, ep_id))
+
+            if i_eval < num_video:
+                for writer in video_writer.values():
+                    writer.close()
+
+    print(f"success rate: {num_suc / num_eval:.2f}")
+    with open(os.path.join(save_dir, "results.txt"), "w") as f:
+        f.write(f"Success rate: {num_suc / num_eval:.2f}\n")
+        f.write("Fail list:\n")
+        for fail in fail_list:
+            f.write(f"{fail}\n")
 
 if __name__ == "__main__":
     eval_imitation()
