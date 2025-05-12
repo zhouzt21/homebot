@@ -36,11 +36,11 @@ python -m homebot_sapien.algorithm.imitate_diffuse
 ### Environment 
 
 - already in use:
-  - pick_and_place_panda
-  - pick_and_place_panda_real
+  - pick_and_place_panda: object dataset includes egad dataset, ycb dataset
+  - pick_and_place_panda_real: object dataset includes egad dataset, ycb dataset, some real object (3d-reconstruction)
   - open_door
   - drawer
-  - pick_and_place_panda_side
+  - pick_and_place_panda_side: object dataset includes only real side objects
 
 ### collect
 
