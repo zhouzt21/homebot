@@ -85,7 +85,7 @@ class OpenDoorEnv(BaseEnv):
                 right_dir=np.array([0.7, -1.0, 0.0]),
                 name="third",
                 resolution=(320, 240),
-                fov=np.deg2rad(60),
+                fov=np.deg2rad(50),  
             )
         self.standard_head_cam_pose = self.cameras["third"].get_pose()
         self.standard_head_cam_fovx = self.cameras["third"].fovx
