@@ -22,8 +22,8 @@ setup(
         "imageio[ffmpeg]",
         "trimesh",
         "rtree",
-        "torch==1.11.0+cu113",       # 如需安装 GPU 版本，请参考官方说明添加 --extra-index-url
-        "torchvision==0.12.0+cu113",   # 同上
+        # "torch==1.11.0+cu113",       # 如需安装 GPU 版本，请参考官方说明添加 --extra-index-url
+        # "torchvision==0.12.0+cu113",   # 同上
         "matplotlib",
         "pre-commit",
         "wandb",

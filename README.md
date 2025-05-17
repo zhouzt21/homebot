@@ -8,7 +8,17 @@ cd docker
 docker build -t sapien -f Dockerfile .
 ```
 
-## Usage
+Local:
+
+```
+conda create -n homebot python=3.8 -y
+conda activate homebot
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 --extra-index-url https://download.pytorch.org/whl/cu113
+pip install -e .
+```
+
+## Old Version Usage
+
 Scripted policy: it will export a video at `test.mp4`.
 ```
 python -m homebot_sapien.env.open_door
@@ -31,7 +41,7 @@ Imitation learning using diffusion policy,
 python -m homebot_sapien.algorithm.imitate_diffuse
 ```
 
-## New version Usage
+## New Version Usage
 
 ### Environment 
 
