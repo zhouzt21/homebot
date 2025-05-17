@@ -41,7 +41,7 @@
       <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
     </inertial>
   </link>
-  <joint name="mobile_rotation" type="continuous">
+  <joint name="mobile_rotation" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="mobile_base1" />
     <child link="mobile_base2" />
@@ -54,7 +54,7 @@
       <inertia ixx="1e-4" ixy="0.0" ixz="0.0" iyy="1e-4" iyz="0.0" izz="1e-4"/>
     </inertial>
   </link>
-  <joint name="mobile_translation" type="prismatic">
+  <joint name="mobile_translation" type="fixed">
     <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="mobile_base2" />
     <child link="mount_link_fixed" />

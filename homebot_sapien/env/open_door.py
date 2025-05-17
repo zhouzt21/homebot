@@ -275,10 +275,16 @@ class OpenDoorEnv(BaseEnv):
                 self.standard_head_cam_fovx + self.np_random.uniform(-0.1, 0.1),
                 compute_y=True,
             )
-            self.cameras["wrist"].set_fovx(
-                self.standard_wrist_cam_fovx + self.np_random.uniform(-0.05, 0.05),
-                compute_y=True,
-            )
+            # self.cameras["wrist"].set_fovx(
+            #     self.standard_wrist_cam_fovx + self.np_random.uniform(-0.05, 0.05),
+            #     compute_y=True,
+            # )
+
+            # 取消相机随机变换，直接设置为标准相机位姿与视角
+            self.cameras["third"].set_pose(self.standard_head_cam_pose)
+            self.cameras["third"].set_fovx(self.standard_head_cam_fovx, compute_y=True)
+            # self.cameras["wrist"].set_fovx(self.standard_wrist_cam_fovx, compute_y=True)
+
         if "free" in self.robot.get_name():
             # Robot pose randomize
             float_xyz_rpy = self.np_random.uniform(
@@ -882,7 +888,7 @@ class OpenDoorEnv(BaseEnv):
 
 def test():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    video_filename = "test"
+    video_filename = "test_open_door"
     video_writer = imageio.get_writer(
         f"{video_filename}.mp4",
         fps=40,
@@ -892,7 +898,7 @@ def test():
     open_door_sim = OpenDoorEnv(
         use_gui=False,
         device=device,
-        obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+        obs_keys=("third-rgb", "tcp_pose", "gripper_width"),
         door_from_urdf=False,
         # use_real=True,
         # domain_randomize=False,

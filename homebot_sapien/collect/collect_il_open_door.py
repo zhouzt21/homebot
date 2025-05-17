@@ -30,6 +30,7 @@ def collect_door_data():
     PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
     save_dir = os.path.join(PANDA_DATA, "open_door_data")    
     name = "door"
+    mode = "third"  ## cannot be "wrist" now
     num_seeds = 1000
     num_vid = 20
     #########################
@@ -47,7 +48,7 @@ def collect_door_data():
             open_door_env = OpenDoorEnv(
                 use_gui=False,
                 device=device,
-                obs_keys=("wrist-rgb", "tcp_pose", "gripper_width"),
+                obs_keys=(f"{mode}-rgb", "tcp_pose", "gripper_width"),
                 door_from_urdf=False,
                 domain_randomize=True,  # 
             )
@@ -92,7 +93,7 @@ def collect_door_data():
                     episode_data['action'].append(action.copy())
                     
                     rgb_image = open_door_env.render()
-                    imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_wrist.jpg"), rgb_image)
+                    imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{mode}.jpg"), rgb_image)
                     video_writer.append_data(rgb_image)
                     
                     frame_id += 1
