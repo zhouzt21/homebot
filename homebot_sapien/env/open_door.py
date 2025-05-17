@@ -391,79 +391,62 @@ class OpenDoorEnv(BaseEnv):
     def step(self, action: np.ndarray):
         action = action.copy()
         info = {}
-        if "free" in self.robot.get_name():
-            assert len(action) == 7
-            target_qpos = np.concatenate([action[:6], np.ones(6) * action[6]])
-            target_qvel = np.zeros(12)
+
+        if len(action) == 7:
+            # action is desired base w, desired base v, delta eef pose, binary gripper action in the specified frame
+            cur_ee_pose = self._get_tcp_pose()
+            cur_relative_ee_pose = self.init_agv_pose.inv().transform(cur_ee_pose)
+            # action relative to tool frame
+            if self.action_relative == "tool":
+                desired_relative_ee_pose = cur_relative_ee_pose.transform(
+                    sapien.Pose(
+                        p=action[0:3],
+                        q=euler2quat(action[3:6]),
+                    )
+                )
+            # action relative to fixed frame
+            elif self.action_relative == "base":
+                desired_relative_ee_pose = sapien.Pose(
+                    cur_relative_ee_pose.p + self.p_scale * action[0:3],
+                    euler2quat(
+                        quat2euler(cur_relative_ee_pose.q)
+                        + self.rot_scale * action[3:6]
+                    ),
+                )
+            # pose in initial agv frame
+            elif self.action_relative == "none":
+                desired_relative_ee_pose = sapien.Pose(
+                    p=action[0:3], q=euler2quat(action[3:6])
+                )
+                # dirty
+                # action[8] = -action[8]
+            desired_ee_pose = self.init_agv_pose.transform(desired_relative_ee_pose)
+
+            target_qpos = self.base_arm_controller.compute_q_target(
+                 desired_ee_pose, 0.85 - action[6]  ## np.zeros(2),
+            )
+            info["desired_relative_pose"] = np.concatenate(
+                [desired_relative_ee_pose.p, desired_relative_ee_pose.q]
+            )
         else:
-            if len(action) == 9:
-                # TODO: IK for arm, velocity control for mobile base
-                # action is desired base w, desired base v, delta eef pose, binary gripper action in the specified frame
-                cur_ee_pose = self._get_tcp_pose()
-                cur_relative_ee_pose = self.init_agv_pose.inv().transform(cur_ee_pose)
-                # action relative to tool frame
-                if self.action_relative == "tool":
-                    # desired_relative_ee_pose = cur_relative_ee_pose.transform(
-                    #     sapien.Pose(
-                    #         p=self.p_scale * action[2:5],
-                    #         q=euler2quat(self.rot_scale * action[5:8]),
-                    #     )
-                    # )
-                    desired_relative_ee_pose = cur_relative_ee_pose.transform(
-                        sapien.Pose(
-                            p=action[2:5],
-                            q=euler2quat(action[5:8]),
-                        )
-                    )
-                # action relative to fixed frame
-                elif self.action_relative == "base":
-                    desired_relative_ee_pose = sapien.Pose(
-                        cur_relative_ee_pose.p + self.p_scale * action[2:5],
-                        euler2quat(
-                            quat2euler(cur_relative_ee_pose.q)
-                            + self.rot_scale * action[5:8]
-                        ),
-                    )
-                # pose in initial agv frame
-                elif self.action_relative == "none":
-                    desired_relative_ee_pose = sapien.Pose(
-                        p=action[2:5], q=euler2quat(action[5:8])
-                    )
-                    # dirty
-                    # action[8] = -action[8]
-                desired_ee_pose = self.init_agv_pose.transform(desired_relative_ee_pose)
-                # target_qpos = self.base_arm_controller.compute_q_target(
-                #     np.zeros(2), desired_ee_pose, (action[8] + 1) / 2 * 0.85
-                # )
-                target_qpos = self.base_arm_controller.compute_q_target(
-                    np.zeros(2), desired_ee_pose, 0.85 - action[8]
-                )
-                info["desired_relative_pose"] = np.concatenate(
-                    [desired_relative_ee_pose.p, desired_relative_ee_pose.q]
-                )
-            else:
-                assert len(action) == 10
-                # target_arm_q = action[2:9] * self.joint_scale + self.joint_mean
-                target_arm_q = action[2:9]
-                # target_gripper_q = (0.85 - (action[9] + 1) / 2 * 0.85) * np.ones(6)
-                target_gripper_q = (0.85 - action[9]) * np.ones(6)
-                target_qpos = np.concatenate(
-                    [np.zeros(2), target_arm_q, target_gripper_q]
-                )
-            info["desired_joints"] = target_qpos[
-                self.base_arm_controller.arm_joint_indices
-            ]
-            info["desired_gripper_width"] = (
-                0.85 - target_qpos[self.base_arm_controller.finger_joint_indices[0]]
+            assert len(action) == 8
+            target_arm_q = action[:7]
+            target_gripper_q = (0.85 - action[7]) * np.ones(2)  
+            target_qpos = np.concatenate(
+                [ target_arm_q, target_gripper_q]  ## np.zeros(2),
             )
-            target_qvel = np.concatenate(
-                [action[:2] * self.vel_scale, np.zeros(self.robot.dof - 2)]
-            )
-            # print("target qpos", target_qpos, "get qpos", self.robot.get_qpos())
-        # target_qvel = recover_action(action, self.velocity_limit)
-        # target_qvel[6:] = 0
+        info["desired_joints"] = target_qpos[
+            self.base_arm_controller.arm_joint_indices
+        ]
+        info["desired_gripper_width"] = (
+            0.85 - target_qpos[self.base_arm_controller.finger_joint_indices[0]]
+        )
+        # target_qvel = np.concatenate(
+        #     [action[:2] * self.vel_scale, np.zeros(self.robot.dof - 2)]
+        # )
+
         self.robot.set_drive_target(target_qpos)
-        self.robot.set_drive_velocity_target(target_qvel)
+        # self.robot.set_drive_velocity_target(target_qvel)
         self.robot.set_qf(
             self.robot.compute_passive_force(
                 external=False, coriolis_and_centrifugal=False
@@ -857,10 +840,10 @@ class OpenDoorEnv(BaseEnv):
                     )
                     * self.rot_scale
                 )
-            base_action = np.array([base_angv, base_linv]) / self.vel_scale
+            # base_action = np.array([base_angv, base_linv]) / self.vel_scale
             return np.concatenate(
                 [
-                    base_action,
+                    # base_action,
                     delta_pos,
                     delta_euler,
                     [gripper_width],  # [(0.85 - gripper_width) / 0.85 * 2 - 1],
