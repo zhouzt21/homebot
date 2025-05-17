@@ -42,7 +42,7 @@ import requests
 from datetime import datetime
 
 
-class PickAndPlaceEnv(BaseEnv):
+class PushAndPullEnv(BaseEnv):
     def __init__(
             self,
             use_gui: bool,
@@ -1223,7 +1223,7 @@ def test():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    env = PickAndPlaceEnv(
+    env = PushAndPullEnv(
         use_gui=False,
         device=device,
         obs_keys=("tcp_pose", "gripper_width"),
@@ -1247,138 +1247,12 @@ def test():
     imageio.imwrite(os.path.join("tmp", f"test2.jpg"), obs[f"third-rgb"])
 
 
-def collect_imitation_data():
-    from homebot_sapien.utils.wrapper import StateObservationWrapper, TimeLimit
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    env = PickAndPlaceEnv(
-        use_gui=False,
-        device=device,
-        obs_keys=("tcp_pose", "gripper_width"),
-        domain_randomize=True,
-        # canonical=False,
-        canonical=True,
-        # action_relative="none"
-    )
-    env_wrapper = StateObservationWrapper(TimeLimit(env))
-
-    cameras = ["third"]
-
-    save_dir = "/home/zhouzhiting/Data/panda_data/single_obj/drawer"
-    # save_dir = "try"
-    num_seeds = 5000
-    num_vid = 10
-    os.makedirs(save_dir, exist_ok=True)
-
-    num_suc = 0
-    success_list = []
-
-    from tqdm import tqdm
-
-    for seed in tqdm(range(num_seeds)):
-        save_path = os.path.join(save_dir, f"seed_{seed}")
-        os.makedirs(save_path, exist_ok=True)
-
-        env_wrapper.env.reset(seed=seed)
-
-        # obs = env_wrapper.env.get_observation()
-        # imageio.imwrite(os.path.join("tmp", f"test3.jpg"), obs[f"third-rgb"])
-
-        # random_state = np.random.RandomState(seed=seed)
-
-        # model_id_list = list(env_wrapper.env.objs.keys())
-        # random_state.shuffle(model_id_list)
-
-        if seed < num_vid:
-            video_writer = {cam: imageio.get_writer(
-                f"tmp/seed_{seed}_drawer.mp4",
-                # fps=40,
-                fps=20,
-                format="FFMPEG",
-                codec="h264",
-            ) for cam in cameras}
-
-        success = False
-        frame_id = 0
-
-        try:
-            # goal_p_rand = random_state.uniform(-0.1, 0.1, size=(2,))
-            # goal_q_rand = random_state.uniform(-0.5, 0.5)
-
-            prev_privileged_obs = None
-            while True:
-                action, done, desired_dict = env_wrapper.env.expert_action(
-                    noise_scale=0.2,
-                    # obj_id=model_id,
-                    # goal_obj_pose=sapien.Pose(
-                    #     p=np.concatenate([np.array([0.4, -0.2]) + goal_p_rand, [0.76]]),
-                    #     q=euler2quat(np.array([0, 0, goal_q_rand]))
-                    # )
-                )
-
-                o, _, _, _, info = env_wrapper.env.step(action)
-                o = env_wrapper.process_obs(o)
-
-                # print(done, info["is_success"])
-
-                # done = done or info["is_success"]
-
-                # rgb_images = env.render_all()
-                # rgb_images = env.capture_images_new(cameras=cameras)
-                if frame_id < 500:
-                    if done:
-                        success = True
-                        break
-                    obs = env_wrapper.env.get_observation()
-                    obs.update({"action": action})
-                    obs.update(desired_dict)
-                    obs.update({"wrapper_obs": o})
-
-                    if prev_privileged_obs is not None and np.all(
-                            np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
-                        env_wrapper.env.expert_phase = 0
-                        break
-                    prev_privileged_obs = obs["privileged_obs"]
-
-                    for cam in cameras:
-                        image = obs.pop(f"{cam}-rgb")
-                        imageio.imwrite(os.path.join(save_path, f"step_{frame_id}_cam_{cam}.jpg"), image) 
-                        if seed < num_vid:
-                            video_writer[cam].append_data(image)
-
-                    pickle.dump(obs, open(os.path.join(save_path, f"step_{frame_id}.pkl"), "wb"))  
-                    frame_id += 1
-
-                else:
-                    break
-
-        except Exception as e:
-            print("error: ", seed, e)
-
-        if success:
-            success_list.append((seed, "s", frame_id))
-            num_suc += 1
-            # print(seed, "s", frame_id)
-        else:
-            success_list.append((seed, "f", frame_id))
-            # print(seed, "f", frame_id)
-
-        if seed < num_vid:
-            for writer in video_writer.values():
-                writer.close()
-
-    pickle.dump(success_list, open(os.path.join(save_dir, f"info.pkl"), "wb"))
-
-    print(num_suc)
-
-
 def collect_sim2sim_data():
     from homebot_sapien.utils.wrapper import StateObservationWrapper, TimeLimit
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    cano_env = PickAndPlaceEnv(
+    cano_env = PushAndPullEnv(
         use_gui=False,
         device=device,
         obs_keys=(),
@@ -1387,7 +1261,7 @@ def collect_sim2sim_data():
         # action_relative="none"
     )
 
-    rand_env = PickAndPlaceEnv(
+    rand_env = PushAndPullEnv(
         use_gui=False,
         device=device,
         obs_keys=(),
@@ -1460,7 +1334,7 @@ def collect_sim2sim_data():
 
                         if prev_privileged_obs is not None and np.all(
                                 np.abs(cano_obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
-                            env_wrapper.env.expert_phase = 0
+                            cano_env.expert_phase = 0
                             break
                         prev_privileged_obs = cano_obs["privileged_obs"]
 
@@ -1502,7 +1376,6 @@ def collect_sim2sim_data():
 
 
 if __name__ == "__main__":
-    # test()
-    collect_imitation_data()
+    test()
     # collect_sim2sim_data()
 

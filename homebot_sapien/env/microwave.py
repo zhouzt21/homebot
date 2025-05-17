@@ -147,7 +147,7 @@ class PushAndPullEnv(BaseEnv):
         self.table_top_z = 0.76
 
         self.microwave_scale = 0.2  # 0.25
-        self.microwave_base_z = 0.16 * self.microwave_scale
+        self.microwave_base_z = 0.16 * self.microwave_scale + 0.15
         # self.storage_box = load_storage_box(self.scene, root_position=np.array([0.4, -0.2, self.table_top_z]))
         microwaves_poses = [
             sapien.Pose(
@@ -557,16 +557,36 @@ class PushAndPullEnv(BaseEnv):
     def expert_action(self, obj_id=None, goal_obj_pose=None, noise_scale=0.0, microwave_id=0):
         # phases: before pregrasp, to grasp, close gripper, rotate, pull open
 
-        microwave_pose = self.microwaves[microwave_id].get_pose()
-        print("microwave_pose", microwave_pose, quat2euler(microwave_pose.q))
-        
-        ### TODO: microwave pose    
+        # pose1 = sapien.Pose(p=np.array([0, 0, 0]), q=np.array([0.707, 0, 0, 0.707]))
+        # pose2 = sapien.Pose(p=np.array([0, 0, 0]), q=np.array([0.707, 0, 0, -0.707]))
+        #
+        # # pose2 @ T = pose1
+        # # T = pose2^-1 @ pose1
+        # T = pose2.inv().transform(pose1)
+        # print(T, quat2euler(T.q))  # [0, 0, 0, 1]
+        # exit()
+
+        microwave_pose = self.microwaves[microwave_id].get_pose().transform(sapien.Pose(
+            q=np.array([0, 0, 0, 1])
+        ))
+        # print("microwave_pose", microwave_pose, quat2euler(microwave_pose.q))
+
+        link_pose = None
+        for microwave in self.microwaves:
+            for link_idx, link in enumerate(microwave.get_links()):
+                # print(link, link.get_pose())
+                if link.get_name() == "debug_red_dot":
+                    link_pose = link.get_pose()
+
+        ### TODO: microwave pose
+        # print("microwave_scale", self.microwave_scale)
         handle_pose = microwave_pose.transform(sapien.Pose(
-            p=np.array([-2.0, 0.0, 0.0]) * self.microwave_scale + np.array([0.01, 0, 0])
-        ))     
-        print("handle_pose", handle_pose, quat2euler(handle_pose.q))
+            p=np.array([0.4, 0.45, 0.]) * self.microwave_scale + np.array([0.01, 0, 0]),
+            # p=np.array([0.1, 0.1, 0.0]) + np.array([0.01, 0, 0]),
+        ))
+        # print("handle_pose", handle_pose, quat2euler(handle_pose.q))
         push_handle_pose = microwave_pose.transform(sapien.Pose(
-            p=np.array([0.345, 0.0, 0.0]) * self.microwave_scale
+            p=np.array([0.4, 0.45, 0.0]) * self.microwave_scale
         ))
 
         pre_grasp_pose = handle_pose.transform(sapien.Pose(
@@ -581,123 +601,21 @@ class PushAndPullEnv(BaseEnv):
         # print(microwave_pose, handle_pose)
 
         from transforms3d.euler import euler2mat
-        ## why? zzt
         handle_T_grasp = sapien.Pose.from_transformation_matrix(
             np.array(
                 # 1.57 1.57 0
-                # [
-                #     [0, -1, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                # 1.57 -1.57 0 (2)
-                # [
-                #     [0, -1, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                # 0 0 0 (3)
-                # [
-                #     [1, 0, 0, 0],
-                #     [0, 1, 0, 0],
-                #     [0, 0, 1, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                # 0 0 1.57 (4)
-                # [
-                #     [0, -1, 0, 0],
-                #     [1, 0, 0, 0],
-                #     [0, 0, 1, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                # 0 0 -1.57 (5)
-                # [
-                #     [0, 1, 0, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 1, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                # 1.57 0 -1.57 (6)
-                # [
-                #     [0, 0, -1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 1, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]     
-                # 1.57 0 1.57 (12)
-                # [
-                #     [0, 0, 1, 0],
-                #     [1, 0, 0, 0],
-                #     [0, 1, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]    
-                # 1.57 0 0 (13)
-                # [
-                #     [1, 0, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [0, 1, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]    
-                # 1.57 0 0.785 (14)
-                # [
-                #     [0.707, 0, 0.707, 0],
-                #     [0.707, 0, -0.707, 0],
-                #     [0, 1, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]                    
-                # 1.57,1.57,1.57 (15)
-                # [
-                #     [0, 0, 1, 0],
-                #     [0, 1, 0, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]    
-                # 1.57, -1.57,1.57 (16)
                 [
-                    [0, 0, 1, 0],
                     [0, -1, 0, 0],
-                    [1, 0, 0, 0],
+                    [0, 0, -1, 0],
+                    [-1, 0, 0, 0],
                     [0, 0, 0, 1],
-                ]    
-                # -1.57 0 -1.57 (7)
-                # [
-                #     [0, 0, 1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, -1, 0, 0],
-                #     [0, 0, 0, 1],
-                # ] 
-                #     0,-1.57,-1.57 (8)
-                # [
-                #     [0, 1, 0, 0],
-                #     [0, 0, 1, 0],
-                #     [1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]
-                #     0,-1.57,-1.57 (9)
-                # [
-                #     [0, 1, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]     
-                # 0, -1.57,0 (10)
-                # [
-                #     [0, 1, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]         
-                # # 0, -3.14, 0 (11)       
-                # [
-                #     [0, 1, 0, 0],
-                #     [0, 0, -1, 0],
-                #     [-1, 0, 0, 0],
-                #     [0, 0, 0, 1],
-                # ]                          
+                ]      
             )
         )
+
+        # handle_T_grasp = pose3.transform(handle_T_grasp)
+        handle_T_grasp = handle_T_grasp.transform(sapien.Pose(q=euler2quat(np.array([0, 0, 1.57]))))
+        # print(handle_T_grasp)
 
         desired_grasp_pose: sapien.Pose = None
         desired_gripper_width = None
@@ -714,7 +632,7 @@ class PushAndPullEnv(BaseEnv):
             )
 
         # copy from drawer, not modified yet
-        print("expert_phase", self.expert_phase)
+        # print("expert_phase", self.expert_phase)
         if self.expert_phase == 0:
 
             desired_grasp_pose = pre_grasp_pose.transform(handle_T_grasp)
@@ -746,7 +664,15 @@ class PushAndPullEnv(BaseEnv):
             )
         elif self.expert_phase == 2:
             gripper_width = self._get_gripper_width()
-            desired_grasp_pose = handle_pose.transform(handle_T_grasp)
+
+            tcp_pose = self._get_tcp_pose()
+            rot_org = np.array([link_pose.p[0], link_pose.p[1], tcp_pose.p[2]])
+            rot_q = sapien.Pose(q=euler2quat(np.array([0, 0, -self.rot_scale]))).transform(sapien.Pose(q=tcp_pose.q)).q
+            rot_p = sapien.Pose(p=(tcp_pose.p - rot_org)).transform(sapien.Pose(q=rot_q)).p + rot_org
+
+            # desired_grasp_pose = handle_pose.transform(handle_T_grasp)
+            desired_grasp_pose = sapien.Pose(p=rot_p, q=rot_q)
+            # print(desired_grasp_pose, tcp_pose, "expert_phase==2")
 
             apply_noise_to_pose(desired_grasp_pose)
             desired_gripper_width = (
@@ -828,6 +754,8 @@ class PushAndPullEnv(BaseEnv):
         done = False
         # print(tcp_pose, "tcp")
 
+        # print(tcp_pose.p, desired_grasp_pose.p, np.linalg.norm(tcp_pose.p - desired_grasp_pose.p))
+        # print(tcp_pose.q, desired_grasp_pose.q, abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]))
         if (
                 np.linalg.norm(tcp_pose.p - desired_grasp_pose.p) < 0.01
                 and abs(qmult(tcp_pose.q, qconjugate(desired_grasp_pose.q))[0]) > 0.95
@@ -1018,7 +946,7 @@ def test_expert_grasp():
     env_wrapper = StateObservationWrapper(TimeLimit(env))
     cameras = ["third"]
 
-    num_seeds = 1  # cano test
+    num_seeds = 10  # cano test
     num_vid = 10
 
     num_suc = 0
@@ -1055,6 +983,7 @@ def test_expert_grasp():
 
                 if frame_id < 500:
                     if done:
+                        print("done", "frame_id", frame_id)
                         success = True
                         break
                     obs = env_wrapper.env.get_observation()
@@ -1093,7 +1022,7 @@ def test_expert_grasp():
     # with open("success_list.txt", "w") as f:
     #     for entry in success_list:
     #         f.write(f"{entry[0]} {entry[1]} {entry[2]}\n")
-
+    print(success_list)
     print(num_suc)
 
 if __name__ == "__main__":
