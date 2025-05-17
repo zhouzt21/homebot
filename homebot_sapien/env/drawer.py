@@ -1246,6 +1246,100 @@ def test():
     obs = env_wrapper.env.get_observation()
     imageio.imwrite(os.path.join("tmp", f"test2.jpg"), obs[f"third-rgb"])
 
+def test_expert_grasp():
+    from homebot_sapien.utils.wrapper import StateObservationWrapper, TimeLimit
+    # stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    env = PushAndPullEnv(
+        use_gui=False,
+        device=device,
+        obs_keys=("tcp_pose", "gripper_width"),
+        domain_randomize=True,
+        canonical=True,
+        # action_relative="none"
+    )
+    env_wrapper = StateObservationWrapper(TimeLimit(env))
+    cameras = ["third"]
+
+    num_seeds = 10  # cano test
+    num_vid = 10
+
+    num_suc = 0
+    success_list = []
+
+    from tqdm import tqdm
+
+    for seed in tqdm(range(num_seeds)):
+
+        env_wrapper.env.reset(seed=seed)
+        video_dir = f"tmp/drawer/"  #{stamp}
+        os.makedirs(video_dir, exist_ok=True)
+
+        if seed < num_vid:
+            video_writer = {cam: imageio.get_writer(
+                f"{video_dir}/seed_{seed}_drawer.mp4",
+                fps=20,
+                format="FFMPEG",
+                codec="h264",
+            ) for cam in cameras}
+
+        success = False
+        frame_id = 0
+
+        try:
+            prev_privileged_obs = None
+            while True:
+                action, done, desired_dict = env_wrapper.env.expert_action(
+                    noise_scale=0.2,
+                )
+
+                o, _, _, _, info = env_wrapper.env.step(action)
+                o = env_wrapper.process_obs(o)
+
+                if frame_id < 500:
+                    if done:
+                        print("done", "frame_id", frame_id)
+                        success = True
+                        break
+                    obs = env_wrapper.env.get_observation()
+                    obs.update({"action": action})
+                    obs.update(desired_dict)
+                    obs.update({"wrapper_obs": o})
+
+                    if prev_privileged_obs is not None and np.all(
+                            np.abs(obs["privileged_obs"] - prev_privileged_obs) < 1e-4):
+                        env_wrapper.env.expert_phase = 0
+                        break
+                    prev_privileged_obs = obs["privileged_obs"]
+
+                    for cam in cameras:
+                        image = obs.pop(f"{cam}-rgb")
+                        if seed < num_vid:
+                            video_writer[cam].append_data(image)
+
+                    frame_id += 1
+                else:
+                    break
+
+        except Exception as e:
+            print("error: ", seed, e)
+
+        if success:
+            success_list.append((seed, "s", frame_id))
+            num_suc += 1
+        else:
+            success_list.append((seed, "f", frame_id))
+
+        if seed < num_vid:
+            for writer in video_writer.values():
+                writer.close()
+
+    # with open("success_list.txt", "w") as f:
+    #     for entry in success_list:
+    #         f.write(f"{entry[0]} {entry[1]} {entry[2]}\n")
+    print(success_list)
+    print(num_suc)
 
 def collect_sim2sim_data():
     from homebot_sapien.utils.wrapper import StateObservationWrapper, TimeLimit
@@ -1376,6 +1470,7 @@ def collect_sim2sim_data():
 
 
 if __name__ == "__main__":
-    test()
+    # test()
+    test_expert_grasp()
     # collect_sim2sim_data()
 
