@@ -4,6 +4,7 @@ texture/
 try/
 # *.png
 # *.jpg
+*.egg-info
 *.convex.stl
 *.mp4
 *.gif
