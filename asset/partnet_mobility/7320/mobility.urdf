@@ -245,4 +245,22 @@
 		<child link="link_1"/>
 		<parent link="base"/>
 	</joint>
+
+	<link name="debug_red_dot">
+	  <visual>
+		<origin xyz="0 0 0"/>
+		<geometry>
+		  <sphere radius="0.02"/>
+		</geometry>
+		<material name="red">
+		  <color rgba="1 0 0 0"/>
+		</material>
+	  </visual>
+	</link>
+	<joint name="debug_dot_joint" type="fixed">
+	  <parent link="link_1"/>
+	  <child link="debug_red_dot"/>
+	  <origin xyz="-0.7663123617888119 0.4711569999999998 0.39380938953471023"/>
+<!--	  <origin xyz="0 0 0"/>-->
+	</joint>
 </robot>
