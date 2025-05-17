@@ -10,8 +10,6 @@ sys.path.append('/home/zhouzhiting/Projects/homebot')
 from homebot_sapien.utils.math import wrap_to_pi, euler2quat, quat2euler, mat2euler, get_pose_from_rot_pos
 from homebot_sapien.env.open_door import OpenDoorEnv
 
-PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
-
 def convert_pose_to_array(pose: sapien.Pose):
     """
     将 sapien.Pose 转换为 (7,) 数组：前三个为位置信息，后四个为四元数表示旋转
@@ -28,12 +26,16 @@ def collect_door_data():
     """
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    save_dir = os.path.join(PANDA_DATA, "open_door_data")
-    os.makedirs(save_dir, exist_ok=True)
-    
+    #### need to be set ######
+    PANDA_DATA = "/home/zhouzhiting/Data/panda_data"
+    save_dir = os.path.join(PANDA_DATA, "open_door_data")    
+    name = "door"
     num_seeds = 1000
     num_vid = 20
+    #########################
+
     num_suc = 0
+    os.makedirs(save_dir, exist_ok=True)
     
     from tqdm import tqdm
     
@@ -56,10 +58,10 @@ def collect_door_data():
             os.makedirs(ep_path, exist_ok=True)
             
             if seed < num_vid:
-                video_path = os.path.join("tmp/door", "videos")
+                video_path = os.path.join(f"tmp/{name}", "videos")
                 os.makedirs(video_path, exist_ok=True)
                 video_writer = imageio.get_writer(
-                    f"{video_path}/seed_{seed}_open_door.mp4",
+                    f"{video_path}/seed_{seed}_{name}.mp4",
                     fps=20,
                     format="FFMPEG",
                     codec="h264",
