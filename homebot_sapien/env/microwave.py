@@ -234,12 +234,12 @@ class PushAndPullEnv(BaseEnv):
             ]
 
             # microwave
-            # microwave_rand = self.np_random.uniform(-1, 1, (3,))
-            # yaw_range = (np.pi / 3, np.pi * 3 / 5)
-            # yaw_rand = (yaw_range[1] + yaw_range[0]) / 2 + microwave_rand[-1] * (yaw_range[1] - yaw_range[0]) / 2
+            microwave_rand = self.np_random.uniform(-1, 1, (3,))
+            yaw_range = (-np.pi * 3/5, -np.pi * 2 / 5)
+            yaw_rand = (yaw_range[1] + yaw_range[0]) / 2 + microwave_rand[-1] * (yaw_range[1] - yaw_range[0]) / 2
 
-            microwave_rand = self.np_random.uniform(0,0, (3,))
-            yaw_rand = -np.pi /2  #np.pi / 2
+            # microwave_rand = self.np_random.uniform(0,0, (3,))
+            # yaw_rand = -np.pi /2  #np.pi / 2
             if hasattr(self, "microwaves"):
                 for microwave in self.microwaves:
                     self.scene.remove_articulation(microwave)
