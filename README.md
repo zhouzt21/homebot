@@ -36,17 +36,18 @@ python -m homebot_sapien.algorithm.imitate_diffuse
 ### Environment 
 
 - already in use:
-  - pick_and_place_panda: object dataset includes egad dataset, ycb dataset
-  - pick_and_place_panda_real: object dataset includes egad dataset, ycb dataset, some real object (3d-reconstruction)
-  - open_door
-  - drawer
-  - pick_and_place_panda_side: object dataset includes only real side objects
+  - pick_and_place_panda: PickAndPlaceEnv, object dataset includes egad dataset, ycb dataset
+  - pick_and_place_panda_real: PickAndPlaceEnv, object dataset includes egad dataset, ycb dataset, some real object (3d-reconstruction)
+  - pick_and_place_panda_side: PickAndPlaceEnv, object dataset includes only real side objects
+  - open_door: OpenDoorEnv
+  - drawer, ,microwave: PushAndPullEnv
+  
 
 ### collect
 
 - `homebot/homebot_sapien/collect`
   - collect il env data for diffusion policy
-    - `collect_il_real.py`, `collect_il_drawer.py`, `collect_il_open_door.py` is in use
+    - `collect_il_real.py`, `collect_il_push_pull.py`, `collect_il_open_door.py` is in use
     - need to change `num_seeds`, `save_dir` and `name`
     - check the env to see if it is the one to collect with
   

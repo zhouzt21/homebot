@@ -9,6 +9,7 @@
 
 - door_articulation
 - drawer_articulation
+- microwave_acticulation
 - pick_and_place_articulation
 
 ### Env Define 
