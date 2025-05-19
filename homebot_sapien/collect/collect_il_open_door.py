@@ -75,6 +75,8 @@ def collect_door_data():
                 'tcp_pose': [],
                 'gripper_width': [],
                 'action': [],
+                'robot_joints': [],
+                'privileged_obs': []
             }
             
             try:
