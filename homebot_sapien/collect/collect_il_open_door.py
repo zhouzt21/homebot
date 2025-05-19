@@ -85,18 +85,17 @@ def collect_door_data():
                     _, _, _, _, info = open_door_env.step(action)
                     
                     obs = open_door_env.get_observation()
-                    
-                    # episode_data['tcp_pose'].append(convert_pose_to_array(env._get_tcp_pose()))  ## ??
-                    # episode_data['gripper_width'].append(env._get_gripper_width())  ## ??
+
+                    image = obs.pop(f"{mode}-rgb")
+                    imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{mode}.jpg"), image) 
+                    if seed < num_vid:
+                        video_writer.append_data(image)
+
                     episode_data['tcp_pose'].append(obs["tcp_pose"].copy())  
                     episode_data['gripper_width'].append(obs["gripper_width"].copy())  
                     episode_data['robot_joints'].append(obs["robot_joints"].copy())  
                     episode_data['privileged_obs'].append(obs["privileged_obs"].copy())
                     episode_data['action'].append(action.copy())
-                    
-                    rgb_image = open_door_env.render()
-                    imageio.imwrite(os.path.join(ep_path, f"step_{frame_id}_cam_{mode}.jpg"), rgb_image)
-                    video_writer.append_data(rgb_image)
                     
                     frame_id += 1
                     
